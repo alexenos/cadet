@@ -38,8 +38,9 @@ and the evaluation protocol.
 pip install -e ".[dev,logging]"
 ```
 
-For GPU training, install a CUDA build of PyTorch first — the CPU wheel is roughly
-50× slower here and makes the paper-scale sweep impractical:
+For GPU training, install a CUDA build of PyTorch first. This matters enormously: measured
+end-to-end PPO throughput is **2 fps on the CPU wheel versus ~360 fps on an RTX 3050**, a
+180× difference that decides whether training is possible at all.
 
 ```bash
 pip install torch --index-url https://download.pytorch.org/whl/cu126
@@ -174,18 +175,36 @@ Reproduced without any training, from the models alone:
 The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md).
 Pass `--paper-sigma` anywhere to pin the printed values instead.
 
-**Learned-controller results are not reproduced here** — that needs the full 24-cell ×
-30M-timestep sweep. See *Compute* below.
+**Learned-controller results are not reproduced here.** No policy in this repo has been
+trained beyond a smoke run. The paper's central claims — CADET closing 42% of the SSP→Oracle
+gap and CADET-Plan 56%, plus Tables 1–4 and Figures 4–6 — are therefore **unvalidated**: the
+apparatus that would test them is built and verified, but it has not been run at a scale
+where learned behaviour could confirm or refute them. See *Compute* below.
 
 ---
 
 ## Compute
 
-The paper trains 24 configurations for 30M timesteps each. On this machine
-(RTX 3050 laptop, 20 cores) the environment runs at ~5,400 steps/s for CADET and ~2,600 for
-CADET-Plan, and the CNN is the bottleneck; one paper-scale cell is on the order of a day.
-`--profile quick` (2M timesteps) trains a single cell in roughly an hour on GPU and is the
-right setting for checking that learning proceeds.
+The paper trains 24 configurations for 30M timesteps each. Measured on an RTX 3050 laptop
+(20 CPU cores), with `n_envs=8` and everything else at Table 5 defaults:
+
+| | throughput | 30M timesteps |
+|---|---|---|
+| CADET | 363 fps | ~23 h |
+| CADET-Plan | 358 fps | ~23 h |
+| Full 24-cell grid | | **~23 days** |
+
+PPO dominates, not the simulator — the two controllers run at the same speed despite
+CADET-Plan invoking the DP planner, and the environment alone sustains 5,400 / 2,600 steps/s
+respectively. Two consequences:
+
+- **`--subproc` is slower here** (278 fps), because IPC overhead on `8×64×32` observations
+  exceeds what parallel env stepping buys back. Leave it off unless you enlarge the AoR.
+- Speed comes from the GPU and from batch size, not from more environment workers.
+
+A full paper-scale sweep therefore wants a datacentre GPU or a multi-machine split.
+`--profile quick` (2M timesteps, ~1.5 h/cell) is the right setting for confirming that
+learning proceeds; `--profile smoke` is for CI.
 
 ```bash
 python -m cadet.experiments --profile smoke --lookahead 32 --budgets 150   # minutes, CI-scale
