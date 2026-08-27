@@ -169,10 +169,33 @@ Reproduced without any training, from the models alone:
 | SSP baseline (3,000-epoch episodes) | ~194 | 210.6 |
 | Oracle baseline | ~295 | 290.0 |
 | SSP capture accuracy | 0.35 | 0.357 |
-| Policy parameters | ~2.2M | 2,157,224 |
+| Policy parameters | ~2.2M | 2,196,839 (encoder 2,155,168) |
 | σ_A for n = 8/16/32/64 | 0.58 / 0.79 / 1.07 / 1.38 | 0.62 / 0.85 / 1.13 / 1.45 |
 
 The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md).
+
+### Checking this yourself
+
+Everything above is re-derived from scratch by one script — no trained policy, no GPU:
+
+```bash
+python scripts/verify.py
+```
+
+It runs 17 checks in about 30 seconds, in three groups:
+
+- **Paper values** recomputed from the models — cloud-free fraction, the four σ_A
+  values of Figure 3, both baselines, capture accuracy, parameter count.
+- **Internal correctness** against independently computed ground truth — the SSP dynamic
+  program is checked against *brute-force enumeration* of every agility-feasible path,
+  and Proposition 1 is checked for **calibration** (among targets assigned probability
+  p, a fraction ≈p really are clear) rather than mere monotonicity.
+- **Negative controls** — random < SSP < Oracle with a non-trivial gap, σ_A → 0
+  collapsing to a hard threshold, the no-information prior landing at 0.5, and σ_A
+  increasing with field of view.
+
+`--quick` runs the same checks in ~5 s with fewer samples. A non-zero exit code means
+something regressed.
 Pass `--paper-sigma` anywhere to pin the printed values instead.
 
 **Learned-controller results are not reproduced here.** No policy in this repo has been
