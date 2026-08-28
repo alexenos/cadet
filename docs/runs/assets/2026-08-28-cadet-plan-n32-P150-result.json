@@ -1,0 +1,24 @@
+[
+  {
+    "controller": "cadet-plan",
+    "lookahead_width": 32,
+    "budget": 150.0,
+    "n_episodes": 20,
+    "episode_length": 3000,
+    "captured_targets": 225.3,
+    "capture_accuracy": 0.6747746467384965,
+    "normalised_power": 0.8382997777777778,
+    "mean_power": 125.74496666666668,
+    "n_lookahead": 145.3,
+    "n_payload": 316.65,
+    "n_sense_noop": 2538.05,
+    "n_roll": 0.0,
+    "n_delegate": 3000.0,
+    "n_move_noop": 0.0,
+    "ssp_captured": 211.2,
+    "oracle_captured": 290.15,
+    "gap_closed_pct": 17.85940468651048,
+    "profile": "quick",
+    "train_seconds": 5859.489044427872
+  }
+]

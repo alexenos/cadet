@@ -174,7 +174,20 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     print(f"wrote {out}")
 
 
-def write_csv(recs: list[dict[str, float]], path: Path) -> None:
+def write_csv(recs: list[dict[str, float]], path: Path, max_rows: int | None = None) -> None:
+    """Write the history, optionally thinned to ``max_rows`` evenly spaced rows.
+
+    A full per-rollout history is ~390 KB per 2M-timestep run and ~5.7 MB at the
+    paper's 30M, so committing them for a 24-cell sweep would add well over
+    100 MB of poorly-compressing churn. A couple of hundred rows preserve the
+    shape of every curve; the full history stays in ``runs/<name>/progress.csv``.
+    """
+    if max_rows and len(recs) > max_rows:
+        step = len(recs) / max_rows
+        picked = [recs[min(len(recs) - 1, int(i * step))] for i in range(max_rows)]
+        if picked[-1] is not recs[-1]:
+            picked[-1] = recs[-1]  # always keep the final rollout
+        recs = picked
     keys = sorted({k for r in recs for k in r})
     keys.remove("total_timesteps")
     keys.insert(0, "total_timesteps")
@@ -193,6 +206,12 @@ def main() -> None:
     src.add_argument("--log", type=Path, help="captured SB3 stdout log")
     ap.add_argument("--out", type=Path, default=Path("figures/training.png"))
     ap.add_argument("--csv", type=Path, default=None, help="also write a tidy CSV")
+    ap.add_argument(
+        "--csv-rows",
+        type=int,
+        default=200,
+        help="thin the CSV to this many evenly spaced rows (0 = full history)",
+    )
     ap.add_argument("--ssp", type=float, default=211.2)
     ap.add_argument("--oracle", type=float, default=290.15)
     ap.add_argument("--ssp-accuracy", type=float, default=0.342)
@@ -214,7 +233,7 @@ def main() -> None:
     print(f"parsed {len(recs)} rollouts, {recs[-1]['total_timesteps']:.0f} timesteps")
 
     if args.csv:
-        write_csv(recs, args.csv)
+        write_csv(recs, args.csv, args.csv_rows or None)
     make_figure(
         recs,
         args.out,

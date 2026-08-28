@@ -195,8 +195,10 @@ def render(
     out += [
         "## Artifacts",
         "",
-        f"- Metric history: `{run_dir.as_posix()}/progress.csv` ({len(recs):,} rollouts)",
-        f"- Model: `{run_dir.as_posix()}/model.zip`",
+        f"Committed with this write-up: see `assets/`. "
+        f"Metric history is {len(recs):,} rollouts.",
+        "",
+        f"Not committed (regenerable, and `model.zip` is large): `{run_dir.as_posix()}/`.",
         "",
         "---",
         "",

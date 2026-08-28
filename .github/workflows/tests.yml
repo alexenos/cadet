@@ -26,3 +26,7 @@ jobs:
         run: ruff check src tests scripts
       - name: Test
         run: python -m pytest -q
+      - name: Check doc references are present and tracked
+        run: python scripts/check_docs.py
+      - name: Verify against the paper (no training required)
+        run: python scripts/verify.py --quick
