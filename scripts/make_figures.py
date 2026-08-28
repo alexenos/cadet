@@ -222,7 +222,7 @@ def main() -> None:
         "--figures", nargs="+", default=["2", "3", "4", "5", "6"], help="which figures"
     )
     parser.add_argument("--results", default="results/sweep.json")
-    parser.add_argument("--out", default="figures")
+    parser.add_argument("--out", default="docs/figures")
     parser.add_argument("--paper-sigma", action="store_true")
     args = parser.parse_args()
 

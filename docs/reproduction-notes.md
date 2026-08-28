@@ -31,6 +31,8 @@ implements. Evaluating Equation (10) at those side lengths gives:
 | 32 | 7.81 | 1.135 | 1.07 | 1.061 |
 | 64 | 15.63 | 1.447 | 1.38 | 1.048 |
 
+![Figure 3 reproduction: conditional visibility against block mean](figures/figure3_visibility.png)
+
 Solving for the side length that would reproduce each published value gives
 `L = 1.70, 3.32, 6.73, 13.42` km — a near-constant **0.86×** our derivation across all four
 FOVs. A uniform scale factor points at a small unstated geometric convention (a disc rather

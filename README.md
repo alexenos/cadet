@@ -61,7 +61,7 @@ python -m cadet.experiments --profile quick --results results/sweep.json
 ```
 
 ```bash
-python scripts/make_figures.py --figures 2 3 --out figures/
+python scripts/make_figures.py --figures 2 3
 ```
 
 Training writes `runs/<name>/progress.csv` with every logged metric per rollout. To see how
@@ -119,6 +119,8 @@ performance saturate beyond `n = 32`.
 genuinely *calibrated* against simulated fields, not merely monotone.
 
 ### The CPOMDP
+
+![Figure 2 reproduction: the area of regard](docs/figures/figure2_environment.png)
 
 **Observation** — an 8-channel `64 × 32` image over the area of regard:
 

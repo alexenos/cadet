@@ -26,7 +26,7 @@ run and ~5.7 MB at the paper's 30M, so committing them for a 24-cell sweep would
 python scripts/run_report.py \
     --run runs/<name> \
     --results results/<file>.json \
-    --figure ../../figures/<name>.png \
+    --figure assets/<date>-<name>.png \
     --out docs/runs/<date>-<name>.md
 ```
 
