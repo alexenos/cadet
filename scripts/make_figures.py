@@ -41,9 +41,7 @@ def figure_visibility(out: Path, use_paper_sigma: bool = False) -> Path:
     y = np.linspace(0.001, 0.999, 500)
     figure, axis = plt.subplots(figsize=(6.0, 4.5), dpi=150)
     for width in LOOKAHEAD_WIDTHS:
-        sigma = (
-            PAPER_SIGMA_A[width] if use_paper_sigma else sigma_for_lookahead_width(width, cfg)
-        )
+        sigma = PAPER_SIGMA_A[width] if use_paper_sigma else sigma_for_lookahead_width(width, cfg)
         axis.plot(
             y,
             conditional_visibility(y, sigma, cfg.tau),
@@ -52,9 +50,7 @@ def figure_visibility(out: Path, use_paper_sigma: bool = False) -> Path:
     axis.axvline(cfg.tau, color="grey", linestyle=":", label=f"Threshold = {cfg.tau}")
     axis.set_xlabel("Observed block-averaged cloud fraction $Y_A$")
     axis.set_ylabel("Probability target is clear")
-    axis.set_title(
-        "Visibility probability as a function\nof block average cloud measurement"
-    )
+    axis.set_title("Visibility probability as a function\nof block average cloud measurement")
     axis.legend(fontsize=8)
     axis.grid(alpha=0.25)
     figure.tight_layout()

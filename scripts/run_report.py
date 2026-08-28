@@ -195,8 +195,7 @@ def render(
     out += [
         "## Artifacts",
         "",
-        f"Committed with this write-up: see `assets/`. "
-        f"Metric history is {len(recs):,} rollouts.",
+        f"Committed with this write-up: see `assets/`. Metric history is {len(recs):,} rollouts.",
         "",
         f"Not committed (regenerable, and `model.zip` is large): `{run_dir.as_posix()}/`.",
         "",
