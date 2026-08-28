@@ -85,6 +85,20 @@ def series(recs: list[dict[str, float]], key: str) -> tuple[list[float], list[fl
     return xs, ys
 
 
+def _combined_legend(ax, ax2=None) -> None:
+    """Legend covering both an axis and its twin.
+
+    ``ax.legend()`` only sees artists drawn on ``ax``, so a series plotted on a
+    twinned axis is silently absent from the legend even when it has a label.
+    """
+    handles, labels = ax.get_legend_handles_labels()
+    if ax2 is not None:
+        h2, l2 = ax2.get_legend_handles_labels()
+        handles, labels = handles + h2, labels + l2
+    if handles:
+        ax.legend(handles, labels, fontsize=7, loc="upper left")
+
+
 def _panel(ax, recs, key, title, ylabel, color="C0"):
     x, y = series(recs, key)
     if not x:
@@ -98,7 +112,7 @@ def _panel(ax, recs, key, title, ylabel, color="C0"):
 
 
 def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float]) -> None:
-    fig, axes = plt.subplots(5, 2, figsize=(13, 17))
+    fig, axes = plt.subplots(5, 2, figsize=(13, 18.5))
     xlabel = "environment timesteps (summed over parallel envs)"
 
     # 1. Reward, against the baselines the run is ultimately scored against.
@@ -114,8 +128,8 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     # Secondary axis in episodes, since "timesteps" is easy to misread.
     eplen = next((r["ep_len_mean"] for r in recs if r.get("ep_len_mean")), None)
     if eplen:
-        sec = ax.secondary_xaxis("top", functions=(lambda t: t / eplen, lambda e: e * eplen))
-        sec.set_xlabel(f"episodes completed (all envs, {eplen:.0f} epochs each)", fontsize=7)
+        sec = ax.secondary_xaxis(-0.28, functions=(lambda t: t / eplen, lambda e: e * eplen))
+        sec.set_xlabel(f"episodes completed (all envs, {eplen:.0f} epochs each)", fontsize=8)
         sec.tick_params(labelsize=7)
 
     # 2. Capture accuracy -- the mechanism the paper claims.
@@ -162,11 +176,13 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     ax.set_ylabel("lambda", fontsize=8)
     ax.grid(alpha=0.3)
     xs, ys = series(recs, "slack")
+    ax2 = None
     if xs:
         ax2 = ax.twinx()
         ax2.plot(xs, ys, color="C1", lw=1, ls=":", label="slack")
         ax2.set_ylabel("slack", fontsize=8, color="C1")
-    ax.legend(fontsize=7, loc="upper left")
+        ax2.tick_params(labelsize=7)
+    _combined_legend(ax, ax2)
 
     # 5. Entropy -- how deterministic the policy has become.
     _panel(axes[2][0], recs, "entropy_loss", "Policy entropy", "entropy loss", color="C5")
@@ -226,12 +242,13 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     ax.set_ylabel("approx_kl", fontsize=8)
     ax.grid(alpha=0.3)
     xc, yc = series(recs, "clip_fraction")
+    ax2 = None
     if xc:
         ax2 = ax.twinx()
         ax2.plot(xc, yc, color="C8", lw=1.0, ls=":", label="clip_fraction")
         ax2.set_ylabel("clip_fraction", fontsize=8, color="C8")
-    ax.legend(fontsize=7, loc="upper left")
-    ax.set_xlabel(xlabel, fontsize=8)
+        ax2.tick_params(labelsize=7)
+    _combined_legend(ax, ax2)
 
     # 10. Phase portrait. Training traces a loop leftwards: the policy reaches
     # its reward early at several times the budget, then learns to hold that
@@ -256,19 +273,13 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     ax.set_ylabel("reward per episode", fontsize=8)
     ax.grid(alpha=0.3)
 
-    for a in (
-        axes[0][0],
-        axes[0][1],
-        axes[1][0],
-        axes[1][1],
-        axes[2][0],
-        axes[2][1],
-        axes[3][0],
-        axes[3][1],
-    ):
-        a.tick_params(labelsize=7)
-    for a in (axes[3][0], axes[3][1]):
-        a.set_xlabel(xlabel, fontsize=8)
+    # Every panel gets its own labelled x-axis underneath it. The phase
+    # portrait is the one exception -- its x-axis is energy, not time.
+    for row in axes:
+        for a in row:
+            a.tick_params(labelsize=7)
+            if a is not axes[4][1]:
+                a.set_xlabel(xlabel, fontsize=8)
 
     fig.suptitle("CADET training diagnostics", fontsize=13)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
