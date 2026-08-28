@@ -92,14 +92,18 @@ def group_a(quick: bool) -> None:
         # Known ~6% high; see docs/reproduction-notes.md. Flag >12% as failure.
         check("A", f"sigma_A  n={n:<3}", f"{got:.3f}", f"{want} (Fig 3)", got / want < 1.12)
 
-    # Policy parameter count. Paper says "~2.2M".
-    import torch  # noqa: F401  (imported here so group A works without CUDA)
-    from gymnasium import spaces
+    # Policy parameter count. Paper says "~2.2M". Count the FULL actor-critic
+    # policy as the repo actually builds it -- policy_kwargs() sets net_arch=[],
+    # so the heads are single linear layers on the shared encoder. Counting the
+    # encoder alone, or letting SB3 apply its default net_arch, both give a
+    # number for a network this codebase never instantiates.
+    from stable_baselines3 import PPO
 
-    from cadet.policies import AoRCNN
+    from cadet.policies import count_parameters, policy_kwargs
 
-    net = AoRCNN(spaces.Box(0, 1, (8, 64, 32), np.float32), 256)
-    n_par = sum(p.numel() for p in net.parameters())
+    env_pp = DynamicTaskingEnv(make_env_config(32, 150.0, "cadet-plan"))
+    model_pp = PPO("CnnPolicy", env_pp, policy_kwargs=policy_kwargs(256), device="cpu", verbose=0)
+    n_par = count_parameters(model_pp.policy)
     check("A", "policy parameters", f"{n_par:,}", "~2.2M (paper)", 2.0e6 < n_par < 2.4e6)
 
     # Baselines over the paper's 3000-epoch episodes.

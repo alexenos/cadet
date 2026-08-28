@@ -19,6 +19,7 @@ from pathlib import Path
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.logger import configure
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
 from .config import EnvConfig, TrainConfig, make_env_config
@@ -37,6 +38,15 @@ __all__ = ["build_vec_env", "train", "run_name"]
 def run_name(controller: str, lookahead_width: int, budget: float) -> str:
     """Canonical identifier for one cell of the experimental grid."""
     return f"{controller}_n{lookahead_width}_P{int(budget)}"
+
+
+def _has_tensorboard() -> bool:
+    """Whether the optional tensorboard package is importable."""
+    try:
+        import tensorboard  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 def _tensorboard_dir(path: Path) -> str | None:
@@ -154,6 +164,13 @@ def train(
                 name_prefix="ppo",
             )
         )
+
+    # SB3's stdout tables are the only record of the run unless we ask for a
+    # durable one. Tensorboard is optional (and not installed by default), so
+    # always write progress.csv -- scripts/plot_training.py reads it.
+    model.set_logger(
+        configure(str(out), ["stdout", "csv"] + (["tensorboard"] if _has_tensorboard() else []))
+    )
 
     metadata = {
         "controller": controller,

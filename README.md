@@ -64,6 +64,18 @@ python -m cadet.experiments --profile quick --results results/sweep.json
 python scripts/make_figures.py --figures 2 3 --out figures/
 ```
 
+Training writes `runs/<name>/progress.csv` with every logged metric per rollout. To see how
+a run actually went:
+
+```bash
+python scripts/plot_training.py --run runs/cadet-plan_n32_P150 --csv history.csv
+```
+
+That produces a six-panel diagnostic — reward against the baselines, capture accuracy, the
+power constraint against its curriculum threshold, the dual variable λ, policy entropy, and
+value-function fit — plus a tidy CSV. It also reads a captured stdout log via `--log` for
+runs that predate CSV logging.
+
 ---
 
 ## The model
@@ -169,7 +181,7 @@ Reproduced without any training, from the models alone:
 | SSP baseline (3,000-epoch episodes) | ~194 | 210.6 |
 | Oracle baseline | ~295 | 290.0 |
 | SSP capture accuracy | 0.35 | 0.357 |
-| Policy parameters | ~2.2M | 2,196,839 (encoder 2,155,168) |
+| Policy parameters | ~2.2M | 2,157,224 (CADET-Plan); 2,156,967 (CADET) |
 | σ_A for n = 8/16/32/64 | 0.58 / 0.79 / 1.07 / 1.38 | 0.62 / 0.85 / 1.13 / 1.45 |
 
 The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md).
