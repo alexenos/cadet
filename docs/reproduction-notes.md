@@ -98,9 +98,41 @@ This implementation gets 210.6 and 290.0 on 3,000-epoch episodes. The Oracle mat
 closely; the SSP baseline is ~8% high, consistent with the back-solved value carrying the
 rounding of the Table 2 percentages.
 
+## First trained result (2026-08-28)
+
+One cell trained at the `quick` profile — CADET-Plan, `n = 32`, `P̄ = 150`, 2M timesteps
+(6.7% of the paper's 30M), 1.63 h on an RTX 3050, evaluated over 20 episodes of 3,000
+epochs:
+
+| quantity | value |
+|---|---|
+| Targets captured | 225.3 |
+| SSP / Oracle | 211.2 / 290.2 |
+| **Gap closed** | **17.9%** |
+| Capture accuracy | 0.675 (SSP: 0.342) |
+| Normalised energy Ē/P̄ | 0.84 |
+
+The paper reports 56% average for CADET-Plan and 38–83% for the moderate and high budgets,
+so this is below the published range — expected at 6.7% of the training budget.
+
+Two things worth recording:
+
+**The gap-closure metric is very sensitive to the SSP baseline.** Scored against this
+implementation's SSP (211.2) the same policy closes 17.9%; against the back-solved paper
+value (194) it closes 31.0%. Since the paper does not tabulate its baselines and 194 is
+itself inferred from rounded Table 2 percentages, roughly half the apparent shortfall may
+be baseline calibration rather than policy quality.
+
+**The policy delegates on every epoch and never steers itself** — `n_delegate = 3000/3000`,
+`n_roll = 0`. It offloads roll planning entirely to the classical SSP solver and spends its
+learned capacity on the *sensing* schedule: payload on 10.6% of epochs, lookahead on 4.8%,
+converting at 0.675 versus SSP's 0.342. It captures more targets than SSP while firing the
+payload one epoch in nine. That is the paper's thesis operating as claimed, but it also
+means the learned *maneuvering* contributed nothing in this cell, and predicts a clear
+CADET/CADET-Plan split — consistent with the paper's 42% vs 56%.
+
 ## What is not reproduced
 
-The learned-controller results (Tables 1–4, Figures 4–6) require training 24 configurations
-for 30M timesteps each. The code path is complete and verified end to end at reduced scale,
-but the published numbers are not claimed here. `cadet.experiments` runs the grid, writes
-incrementally to `results/sweep.json`, and regenerates Table 2/3-style summaries from it.
+Tables 1–4 and Figures 4–6 require all 24 configurations at 30M timesteps. One cell at
+6.7% scale is a single data point, not a reproduction. `cadet.experiments` runs the grid,
+writes incrementally, and regenerates Table 2/3-style summaries from it.
