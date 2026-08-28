@@ -24,8 +24,14 @@ import numpy as np
 
 from cadet.baselines import evaluate_baselines, run_baseline
 from cadet.clouds import CloudConfig, sample_cloud_field, sigma_for_lookahead_width
-from cadet.config import make_env_config
-from cadet.env import DynamicTaskingEnv
+from cadet.config import AOR_WIDTH, make_env_config
+from cadet.env import (
+    MOVE_LEFT,
+    MOVE_NOOP,
+    MOVE_RIGHT,
+    SENSE_PAYLOAD,
+    DynamicTaskingEnv,
+)
 from cadet.planner import solve_roll_trajectory
 from cadet.visibility import VisibilityModel
 
@@ -196,6 +202,42 @@ def group_b(quick: bool) -> None:
         o = run_baseline(env, "oracle").captured_targets
         wins += int(o >= s)
     check("B", "oracle >= ssp on realised field", f"{wins}/{n_ep}", f"{n_ep}/{n_ep}", wins == n_ep)
+
+    # The baselines are scored OFFLINE -- run_baseline reads target visibility
+    # directly and never calls env.step(). A trained policy is scored ONLINE,
+    # by accumulating env.step() rewards. Every gap-closure number compares the
+    # two, so the two accountings must agree exactly or the comparison is
+    # apples-to-oranges. Replay each baseline's own trajectory through step()
+    # and require the rewards to match to the target.
+    agree = 0
+    n_ep = 5 if quick else 12
+    trials = 0
+    for name in ("ssp", "oracle"):
+        for seed in range(n_ep):
+            env.reset(seed=seed)
+            res = run_baseline(env, name, start_col=AOR_WIDTH // 2)
+            cols = np.asarray(res.columns, dtype=int)
+
+            env.reset(seed=seed)
+            env.roll_col = int(cols[0])
+            total = 0.0
+            for t in range(cols.size):
+                nxt = int(cols[t + 1]) if t + 1 < cols.size else int(cols[t])
+                d = nxt - int(cols[t])
+                mv = MOVE_NOOP if d == 0 else (MOVE_LEFT if d < 0 else MOVE_RIGHT)
+                _, r, term, trunc, _ = env.step((mv, SENSE_PAYLOAD))
+                total += r
+                if term or trunc:
+                    break
+            trials += 1
+            agree += int(abs(total - res.captured_targets) < 1e-9)
+    check(
+        "B",
+        "offline baseline == online env.step reward",
+        f"{agree}/{trials}",
+        f"{trials}/{trials}",
+        agree == trials,
+    )
 
 
 # ---------------------------------------------------------------------------

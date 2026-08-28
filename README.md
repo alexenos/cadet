@@ -182,14 +182,18 @@ Everything above is re-derived from scratch by one script — no trained policy,
 python scripts/verify.py
 ```
 
-It runs 17 checks in about 30 seconds, in three groups:
+It runs 18 checks in about 30 seconds, in three groups:
 
 - **Paper values** recomputed from the models — cloud-free fraction, the four σ_A
   values of Figure 3, both baselines, capture accuracy, parameter count.
 - **Internal correctness** against independently computed ground truth — the SSP dynamic
   program is checked against *brute-force enumeration* of every agility-feasible path,
   and Proposition 1 is checked for **calibration** (among targets assigned probability
-  p, a fraction ≈p really are clear) rather than mere monotonicity.
+  p, a fraction ≈p really are clear) rather than mere monotonicity. It also replays each
+  baseline's own trajectory back through `env.step()` and requires the reward to match
+  the offline score exactly — the baselines are scored offline while a trained policy is
+  scored online, so the two accountings must agree or every gap-closure number would be
+  comparing unlike quantities.
 - **Negative controls** — random < SSP < Oracle with a non-trivial gap, σ_A → 0
   collapsing to a hard threshold, the no-information prior landing at 0.5, and σ_A
   increasing with field of view.
