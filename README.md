@@ -184,7 +184,7 @@ Reproduced without any training, from the models alone:
 | Policy parameters | ~2.2M | 2,157,224 (CADET-Plan); 2,156,967 (CADET) |
 | σ_A for n = 8/16/32/64 | 0.58 / 0.79 / 1.07 / 1.38 | 0.62 / 0.85 / 1.13 / 1.45 |
 
-The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md).
+The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md), whose claims cite evidence from individual [training runs](docs/runs/README.md).
 
 ### Checking this yourself
 
