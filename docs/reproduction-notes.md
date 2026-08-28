@@ -130,12 +130,31 @@ discuss its effect on the learning curve. In [cadet-plan n=32 P̄=150](runs/2026
 That final comparison is the paper's thesis demonstrated within a single run: the gain comes
 from imaging selectively, not from imaging more.
 
-**The taper overshoots.** At 400k timesteps the threshold is 297 but discounted cost has
-fallen to 145, and Ē/P̄ is 1.52 against an allowance of 3.0 — the policy has cut spending to
-roughly half of what the constraint permits, and loses reward for no benefit. The dual
-overcorrects and the policy follows it down. Roughly 300k timesteps are spent in an
-unnecessarily conservative regime. A gentler taper or a smaller `lambda_lr` is the obvious
-thing to test before committing to a 24-cell sweep, since every cell pays this cost.
+**The taper overshoots — but this is an artifact of the reduced profile, not of the
+paper's method.** At 400k timesteps in [cadet-plan n=32 P̄=150](runs/2026-08-28-cadet-plan-n32-P150.md) the threshold is 297 while discounted cost has
+fallen to 145, and Ē/P̄ is 1.52 against an allowance of 3.0: the policy cut spending to
+roughly half of what the constraint permitted and lost reward for no benefit, with
+`approx_kl` spiking to 0.342 (~30× a healthy value).
+
+The cause is a scaling omission in `PROFILES`. Each profile scales `total_timesteps`,
+`warmup_steps` and `taper_steps` together, so the curriculum keeps the same *proportions*
+(3.3% warmup, 33% taper). But `lambda_lr` is a fixed `1e-3` and is **not** scaled, while the
+threshold always travels the same 500 → 100:
+
+| profile | dual updates during taper | threshold movement per dual update |
+|---|---|---|
+| `paper` (30M) | 9,766 | 0.041 |
+| `quick` (2M) | 645 | **0.621** |
+
+The `quick` threshold moves **15.2× faster per dual step** with an unchanged step size, so
+the dual cannot track it and overcorrects. At the paper's scale the dual has 15× as many
+updates to follow the same trajectory and would be expected to track it smoothly.
+
+Two consequences. First, **gap-closure numbers from reduced profiles are pessimistic** —
+roughly 300k of `quick`'s 2M timesteps are spent in an unnecessarily conservative regime
+that a paper-scale run would not enter. Second, if reduced profiles are to be used for
+anything quantitative, `lambda_lr` should scale with the taper compression rather than being
+held fixed. This has not been tested.
 
 ## Delegation can absorb the whole maneuvering problem
 
