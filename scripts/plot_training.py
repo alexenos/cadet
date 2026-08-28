@@ -98,7 +98,8 @@ def _panel(ax, recs, key, title, ylabel, color="C0"):
 
 
 def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float]) -> None:
-    fig, axes = plt.subplots(3, 2, figsize=(13, 10), sharex=True)
+    fig, axes = plt.subplots(5, 2, figsize=(13, 17))
+    xlabel = "environment timesteps (summed over parallel envs)"
 
     # 1. Reward, against the baselines the run is ultimately scored against.
     # ep_rew_mean is per TRAINING episode (300 epochs); the baselines are per
@@ -110,6 +111,12 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     ):
         ax.axhline(val, ls=style, color="grey", lw=1)
         ax.annotate(name, (0.01, val), xycoords=("axes fraction", "data"), fontsize=7, color="grey")
+    # Secondary axis in episodes, since "timesteps" is easy to misread.
+    eplen = next((r["ep_len_mean"] for r in recs if r.get("ep_len_mean")), None)
+    if eplen:
+        sec = ax.secondary_xaxis("top", functions=(lambda t: t / eplen, lambda e: e * eplen))
+        sec.set_xlabel(f"episodes completed (all envs, {eplen:.0f} epochs each)", fontsize=7)
+        sec.tick_params(labelsize=7)
 
     # 2. Capture accuracy -- the mechanism the paper claims.
     ax = _panel(
@@ -152,9 +159,8 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
         ax2.set_ylabel("slack", fontsize=8, color="C1")
     ax.legend(fontsize=7, loc="upper left")
 
-    # 5. Entropy -- exploration collapse shows up here.
+    # 5. Entropy -- how deterministic the policy has become.
     _panel(axes[2][0], recs, "entropy_loss", "Policy entropy", "entropy loss", color="C5")
-    axes[2][0].set_xlabel("timesteps")
 
     # 6. Value-function fit.
     ax = axes[2][1]
@@ -164,13 +170,94 @@ def make_figure(recs: list[dict[str, float]], out: Path, refs: dict[str, float])
     ax.axhline(0, color="grey", lw=0.8)
     ax.set_title("Value function explained variance", fontsize=10)
     ax.set_ylabel("explained variance", fontsize=8)
-    ax.set_xlabel("timesteps")
     ax.grid(alpha=0.3)
 
+    # 7. What the policy actually DOES -- the behavioural story the reward hides.
+    ax = axes[3][0]
+    for key, label, color in (
+        ("n_payload", "payload", "C3"),
+        ("n_lookahead", "lookahead", "C0"),
+        ("n_delegate", "delegate", "C2"),
+        ("n_roll", "explicit roll", "C1"),
+    ):
+        x, y = series(recs, key)
+        if x:
+            ax.plot(x, y, lw=1.1, color=color, label=label)
+    ax.set_title("Action usage per episode", fontsize=10)
+    ax.set_ylabel("count per episode", fontsize=8)
+    ax.set_yscale("symlog", linthresh=1)
+    ax.legend(fontsize=7, ncol=2)
+    ax.grid(alpha=0.3)
+
+    # 8. Budget compliance in the units the paper reports (Table 1 gives E/P).
+    ax = axes[3][1]
+    x, y = series(recs, "normalised_power")
+    if x:
+        ax.plot(x, y, color="C3", lw=1.2)
+    ax.axhline(1.0, ls="--", color="k", lw=1)
+    ax.annotate("budget", (0.01, 1.0), xycoords=("axes fraction", "data"), fontsize=7)
+    ax.set_title("Energy use vs budget (Ē/P̄)", fontsize=10)
+    ax.set_ylabel("Ē / P̄", fontsize=8)
+    ax.grid(alpha=0.3)
+
+    # 9. PPO update health. approx_kl spiking means steps are too aggressive;
+    # clip_fraction near 0 means the trust region is barely binding.
+    ax = axes[4][0]
+    x, y = series(recs, "approx_kl")
+    if x:
+        ax.plot(x, y, color="C9", lw=1.0, label="approx_kl")
+    ax.set_title("PPO update health", fontsize=10)
+    ax.set_ylabel("approx_kl", fontsize=8)
+    ax.grid(alpha=0.3)
+    xc, yc = series(recs, "clip_fraction")
+    if xc:
+        ax2 = ax.twinx()
+        ax2.plot(xc, yc, color="C8", lw=1.0, ls=":", label="clip_fraction")
+        ax2.set_ylabel("clip_fraction", fontsize=8, color="C8")
+    ax.legend(fontsize=7, loc="upper left")
+    ax.set_xlabel(xlabel, fontsize=8)
+
+    # 10. Phase portrait. Training traces a loop leftwards: the policy reaches
+    # its reward early at several times the budget, then learns to hold that
+    # reward while spending far less. A time series hides this; the loop is the
+    # clearest single view of "same targets, a fifth of the power".
+    ax = axes[4][1]
+    pw = [
+        (r["total_timesteps"], r["normalised_power"], r["ep_rew_mean"])
+        for r in recs
+        if r.get("normalised_power") is not None and r.get("ep_rew_mean") is not None
+    ]
+    if pw:
+        t, px, py = zip(*pw, strict=True)
+        sc = ax.scatter(px, py, c=t, cmap="viridis", s=5, alpha=0.75)
+        cb = fig.colorbar(sc, ax=ax)
+        cb.set_label("timesteps", fontsize=7)
+        cb.ax.tick_params(labelsize=7)
+    ax.axvline(1.0, ls="--", color="k", lw=1)
+    ax.annotate("budget", (1.0, 0.02), xycoords=("data", "axes fraction"), fontsize=7, rotation=90)
+    ax.set_title("Reward vs energy (training trajectory)", fontsize=10)
+    ax.set_xlabel("Ē / P̄", fontsize=8)
+    ax.set_ylabel("reward per episode", fontsize=8)
+    ax.grid(alpha=0.3)
+
+    for a in (
+        axes[0][0],
+        axes[0][1],
+        axes[1][0],
+        axes[1][1],
+        axes[2][0],
+        axes[2][1],
+        axes[3][0],
+        axes[3][1],
+    ):
+        a.tick_params(labelsize=7)
+    for a in (axes[3][0], axes[3][1]):
+        a.set_xlabel(xlabel, fontsize=8)
+
     fig.suptitle("CADET training diagnostics", fontsize=13)
-    fig.tight_layout(rect=(0, 0, 1, 0.97))
+    fig.tight_layout(rect=(0, 0, 1, 0.98))
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=140)
+    fig.savefig(out, dpi=130)
     print(f"wrote {out}")
 
 
