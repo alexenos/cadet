@@ -212,6 +212,90 @@ above); or run at the `paper` profile.
 
 Until one is tried, **this repo has no CADET-vs-CADET-Plan comparison.**
 
+## Where the remaining shortfall comes from
+
+[cadet n=32 P̄=150, paper scale](runs/2026-08-29-cadet-n32-P150-paper.md) captures 225.8 targets where the paper reports 255.5 for the same cell — 11.6% fewer,
+which costs 38 points of gap closure because the SSP→Oracle window is only ~79 targets wide.
+This records what has been eliminated as a cause and what has not.
+
+### Verified identical to the paper
+
+| | paper | here |
+|---|---|---|
+| SSP / Oracle baselines | 209.5 / 291.5 (back-solved) | 211.2 / 290.2 |
+| Power costs (roll / lookahead / payload) | 36 / 200 / 750 | same |
+| Payload footprint | 1×3, constrained to nadir row | same |
+| Lookahead offset | 32 pixels ahead of nadir | same |
+| Training episodes | 300 epochs | same |
+| Evaluation episodes | 3,000 epochs, 1,532 targets | same |
+| Evaluation action selection | deterministic | same |
+
+The Oracle matching within 0.5% is the strongest single check: it exercises target
+generation, geometry, agility limits and the DP planner end to end. **The environment is
+reproduced; the shortfall is in the learned policy.**
+
+### σ_A is eliminated
+
+The 6% σ_A discrepancy documented above cannot explain any of it. σ_A enters Proposition 1
+as a monotone scaling inside `Φ`, so it changes the *calibration* of the visibility
+probabilities but never their *ordering*. Ranking simulated targets by predicted visibility
+under σ_A = 1.135 and σ_A = 1.07 gives **identical orderings** (prediction correlation
+0.99983) and therefore identical accuracy at every selection threshold:
+
+| targets imaged | σ_A = 1.135 | σ_A = 1.07 |
+|---|---|---|
+| top 5% | 0.9888 | 0.9888 |
+| top 10% | 0.9593 | 0.9593 |
+| top 25% | 0.8394 | 0.8394 |
+
+Since the agent's task is to *choose* which targets to image, a transformation that preserves
+the ranking cannot change what it can achieve. `--paper-sigma` is therefore not worth a
+retraining run to test this particular question.
+
+### The binding constraint is coverage, not belief quality
+
+That same table reframes the problem. Imaging the belief-ranked top 10% of targets would
+yield **0.959** accuracy. The paper achieves 0.714 and this implementation 0.662 — both far
+below what the beliefs support. Neither agent is limited by how well it estimates cloud
+cover; both are limited by *getting the payload to the right place*, under agility limits and
+a scrolling AoR, having only sensed part of the world.
+
+### Deterministic evaluation is eliminated
+
+Evaluating the trained policy stochastically rather than deterministically changes little and
+in the wrong direction: Ē/P̄ 0.942 vs 0.926, and **fewer** targets (222.6 vs 226.1). Training
+stochasticity is not propping up the power spend.
+
+### The open lead: the policy under-spends its budget
+
+Table 1 reports Ē/P̄ = **1.03** for CADET at this cell; this implementation evaluates at
+**0.93**. That 10% of unspent budget is 45,180 units, or 60 additional payload captures —
+about 40 targets at the observed accuracy, more than the 29.7-target deficit.
+
+Roughly half of the difference is a measurement artifact rather than lost performance. The
+episode-start transient (no cloud information yet, so heavy lookahead) amortises differently
+across episode lengths:
+
+| episode length | Ē/P̄ | targets per 1,000 epochs |
+|---|---|---|
+| 300 (training) | 0.979 | 75.8 |
+| 1,000 | 0.946 | 76.4 |
+| 3,000 (evaluation) | 0.926 | 75.4 |
+
+Productivity is **flat** across all three, so the transient moves the reported power without
+changing captures. But even at training length the policy reaches only 0.979 against the
+paper's 1.03, so a genuine ~5% under-use remains.
+
+Note also that the discounted constraint is slightly loose at training length: over 300
+epochs `Σγ^t = (1 − 0.99³⁰⁰)/0.01 = 95.1`, not the `μ = 100` used as the threshold, so a
+policy spending exactly P̄ every epoch registers 95.1 and could afford ~5% more. The agent is
+therefore under-spending against a threshold that is already generous.
+
+**Untested hypotheses, in order of cost:** λ is over-suppressing spend near the boundary;
+the 300-epoch training horizon teaches a spending profile that does not transfer to 3,000;
+or the maneuvering policy simply covers fewer targets per epoch than the paper's. The last
+would show up as a coverage statistic rather than a power one, and is not currently logged.
+
 ## What is not reproduced
 
 Tables 1–4 and Figures 4–6 require all 24 configurations at 30M timesteps. Two cells have
