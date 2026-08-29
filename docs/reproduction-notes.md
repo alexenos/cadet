@@ -102,18 +102,38 @@ changed.
 
 ## Baseline bounds
 
-The paper plots the SSP and Oracle baselines but does not tabulate them; the values quoted
-in the README (~194 and ~295) are back-solved from the gap-closure percentages in Table 2.
-This implementation gets 210.6 and 290.0 on 3,000-epoch episodes. The Oracle matches
-closely; the SSP baseline is ~8% high, consistent with the back-solved value carrying the
-rounding of the Table 2 percentages.
+The paper plots the SSP and Oracle baselines but does not tabulate them. They can, however,
+be recovered exactly: Table 2 gives both a target count and a gap-closure percentage for all
+24 cells, and `gap = (v − ssp)/(oracle − ssp)` is then over-determined. Solving across the
+full grid gives **SSP 209.5, Oracle 291.5**.
 
-**Why this matters more than it looks.** The gap-closure metric divides by `oracle − ssp`,
-so an SSP baseline that is 8% strong compresses the denominator *and* raises the bar. In
-[cadet-plan n=32 P̄=150](runs/2026-08-28-cadet-plan-n32-P150.md) the same policy closes **17.9%** scored against this implementation's SSP (211.2) but
-**31.0%** against the paper's back-solved 194. Roughly half the apparent shortfall from the
-published 56% is baseline calibration rather than policy quality, so any comparison to the
-paper's percentages should be read with that uncertainty attached.
+| | SSP | Oracle |
+|---|---|---|
+| paper, back-solved from Table 2 | 209.5 | 291.5 |
+| this implementation | 211.2 | 290.2 |
+| difference | **+0.8%** | **−0.5%** |
+
+Scoring the paper's own target counts against *this implementation's* baselines reproduces
+its published percentages to within about a point:
+
+| cell | CADET (ours / paper) | CADET-Plan (ours / paper) |
+|---|---|---|
+| P̄=150, n=32 | 56.1 / 56.1 | 73.3 / 72.7 |
+| P̄=150, n=64 | 64.3 / 64.1 | 75.1 / 74.4 |
+| P̄=1500, n=64 | 83.5 / 82.5 | 83.9 / 82.9 |
+
+**The baselines are reproduced.** Both are power-unconstrained offline plans that ignore
+lookahead, so they depend on neither `n` nor `P̄` — a single pair covers the whole grid,
+which is why the back-solve is so well determined.
+
+*Correction.* An earlier version of this note claimed the SSP baseline was ~8% high against
+a back-solved value of 194, and the run write-ups used that to argue roughly half the
+shortfall from the paper was baseline calibration rather than policy quality. **That was
+wrong.** The 194 came from back-solving the rounded averages in the abstract rather than the
+per-cell grid. With correct baselines, the entire shortfall is policy performance:
+[cadet n=32 P̄=150 at paper scale](runs/2026-08-29-cadet-n32-P150-paper.md) captures 225.8
+targets where the paper reports 255.5 for the same cell — 11.6% fewer — and there is no
+calibration effect to absorb any of it.
 
 ## The slack curriculum is load-bearing, and it overshoots
 
