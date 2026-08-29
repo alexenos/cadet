@@ -291,10 +291,63 @@ epochs `Σγ^t = (1 − 0.99³⁰⁰)/0.01 = 95.1`, not the `μ = 100` used as t
 policy spending exactly P̄ every epoch registers 95.1 and could afford ~5% more. The agent is
 therefore under-spending against a threshold that is already generous.
 
-**Untested hypotheses, in order of cost:** λ is over-suppressing spend near the boundary;
-the 300-epoch training horizon teaches a spending profile that does not transfer to 3,000;
-or the maneuvering policy simply covers fewer targets per epoch than the paper's. The last
-would show up as a coverage statistic rather than a power one, and is not currently logged.
+### λ is not the limiter, and coverage is not the problem
+
+Both were tested and both are eliminated.
+
+**Coverage selection works.** Comparing targets found in the payload footprint per payload
+action isolates how well the agent chooses *when* to shoot:
+
+| | targets per payload action |
+|---|---|
+| SSP (images blindly, every epoch) | 0.206 |
+| this implementation | **1.041** |
+
+5.1× better than blind imaging. And the imaging *volume* gap against the paper is only 4.6%
+(341.5 targets imaged against 357.8); the accuracy gap is 7.4%. The agent is finding targets,
+not missing them.
+
+**λ is not suppressing spend.** Evaluating all twelve checkpoints of the paper-scale run and
+pairing each with the λ actually applied around it gives a correlation of −0.963 — but that
+is confounded, because λ rose while the taper was independently forcing spending down.
+Restricting to the post-taper window (after 11M, slack fixed at 1) removes the confound: λ is
+essentially flat there (0.0187–0.0257) while Ē/P̄ swings 0.867–0.995, and the correlation
+falls to **−0.406**. λ varies too little to explain the variation in spend.
+
+**The 300 vs 3,000 epoch horizon is not a difference from the paper.** The paper uses the
+same split — 300-epoch training, 3,000-epoch evaluation with targets scaled to 1,532 — so it
+cannot explain a divergence.
+
+### Evaluation variance is larger than it looks
+
+The checkpoint sweep initially appeared to show large differences between checkpoints (8% to
+30% gap closed). Re-running the two extremes at n = 20 shows this was mostly noise:
+
+| model | targets | s.e. | gap closed | 95% CI |
+|---|---|---|---|---|
+| 25M checkpoint | 232.1 | 2.7 | 26.5% | [19.7, 33.3] |
+| 30M final | 227.7 | 2.3 | 20.9% | [15.2, 26.6] |
+
+The intervals overlap; the apparent checkpoint advantage is not significant. Because the
+SSP→Oracle window is only ~79 targets wide, per-episode variance of ~11 targets translates to
+**±6 percentage points of gap closure at n = 20, and ±13 at n = 4.** Any gap-closure figure
+from this repo should carry that interval, and single-digit differences between runs are not
+meaningful. The gap to the paper's 56.1% is ~35 points — far outside it, so the shortfall is
+real regardless.
+
+### What remains
+
+The environment is verified, σ_A is ruled out, coverage is good, λ is not binding, and the
+horizon matches. What is left is a modest but systematic capability gap in the learned
+policy — 4.6% fewer targets imaged and 7.4% lower conversion — that compounds into 35 points
+of gap closure through a narrow baseline window.
+
+The most informative next diagnostic is **not** another run at this cell. The paper's Table 3
+reports capture accuracy across budgets: 0.892 at P̄ = 100, 0.714 at P̄ = 150, 0.202 at
+P̄ = 1500. Those are qualitatively different regimes — at P̄ = 1500 the paper states power is
+effectively unconstrained. Running P̄ = 1500 isolates FOV geometry from constraint handling:
+matching the paper there but not at P̄ = 150 would localise the problem to the primal-dual
+machinery, while falling short at both would point at the base policy or its encoder.
 
 ## What is not reproduced
 
