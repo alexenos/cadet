@@ -140,12 +140,27 @@ def render(
     trans_md, _ = transitions(recs)
     wall = (recs[-1].get("time_elapsed", 0) or 0) / 3600
 
+    # A run stopped early would otherwise report its *configured* timesteps and
+    # read as complete. Compare against what the history actually reached.
+    planned = cfg.get("total_timesteps") or 0
+    reached = recs[-1]["total_timesteps"]
+    incomplete = planned and reached < 0.98 * planned
+
     out = [
         f"# {meta.get('controller')} · n={meta.get('lookahead_width')} · "
         f"P̄={meta.get('budget'):.0f}",
         "",
         f"*Generated {date.today().isoformat()} by `scripts/run_report.py`.*",
         "",
+    ]
+    if incomplete:
+        out += [
+            f"> **Stopped early.** Reached {reached:,.0f} of {planned:,.0f} configured "
+            f"timesteps ({reached / planned * 100:.0f}%). No evaluation was run, so there "
+            f"is no gap-closure number for this cell.",
+            "",
+        ]
+    out += [
         "## Configuration",
         "",
         "| | |",
@@ -153,7 +168,8 @@ def render(
         f"| Controller | `{meta.get('controller')}` |",
         f"| Lookahead width | {meta.get('lookahead_width')} |",
         f"| Power budget P̄ | {meta.get('budget')} |",
-        f"| Timesteps | {cfg.get('total_timesteps'):,} |",
+        f"| Timesteps | {reached:,.0f} run"
+        + (f" of {planned:,} configured |" if incomplete else " |"),
         f"| Parallel envs | {cfg.get('n_envs')} |",
         f"| Seed | {cfg.get('seed')} |",
         f"| Device | {cfg.get('device')} |",

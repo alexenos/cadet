@@ -10,6 +10,7 @@ exists, rather than asserting behaviour.
 | date | run | scale | gap closed | Ē/P̄ | notes |
 |---|---|---|---|---|---|
 | 2026-08-28 | [cadet-plan n=32 P̄=150](2026-08-28-cadet-plan-n32-P150.md) | quick (2M) | 17.9% | 0.84 | First trained cell. Curriculum collapse and recovery; delegates every epoch. |
+| 2026-08-28 | [cadet n=32 P̄=150](2026-08-28-cadet-n32-P150.md) | quick, stopped at 890k | — | 5.24 | **Negative result.** Policy saturated at 207k, gradients exactly zero after; λ diverged to 46. |
 
 Evidence for each write-up — the diagnostics figure, a thinned metric history, and the
 evaluation result — is committed alongside it in [`assets/`](assets/). The run directory

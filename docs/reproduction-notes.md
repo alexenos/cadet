@@ -164,9 +164,33 @@ are already ~0 by 118k timesteps, down from 156 at initialisation.
 
 The controller therefore reduces to "exact SSP planner for maneuvering + learned policy for
 sensing". This is a legitimate use of the `delegate` action rather than a defect, but it
-means a CADET-Plan result says nothing about learned maneuvering quality, and it predicts a
-substantial CADET/CADET-Plan split — consistent with the paper's 42% vs 56%. Training CADET
-at the same cell is the direct test.
+means a CADET-Plan result says nothing about learned maneuvering quality.
+
+**Delegation also appears to stabilise training.** [cadet n=32 P̄=150](runs/2026-08-28-cadet-n32-P150.md) — the same cell without the
+`delegate` action — did not train at all: the policy saturated at 207k timesteps, gradients
+went to exactly zero, and λ diverged to 46 against CADET-Plan's maximum of 0.136. The
+plausible reading is that `delegate` gives the policy a competent maneuvering option
+immediately, so it reaches a low-power regime before the dual punishes it into saturation,
+whereas CADET spends its early training in a high-power regime learning to steer and λ
+passes the point of no return first. If so, the paper's 42% vs 56% understates what
+delegation contributes at tight budgets.
+
+## The dual has no anti-windup, and it can diverge
+
+λ is projected at zero from below but is **unbounded above**, and nothing guards the case
+where the policy saturates and can no longer respond to it. In [cadet n=32 P̄=150](runs/2026-08-28-cadet-n32-P150.md) this proved fatal:
+once the augmented penalty reached ~80× the reward magnitude, the action logits went one-hot,
+entropy and policy gradient both hit exactly zero, and the frozen policy then integrated a
+constant constraint violation into λ indefinitely (reaching 46 and still climbing linearly
+when the run was killed).
+
+The paper specifies no cap, entropy floor, or penalty bound. It also trains 15× longer per
+taper step, so its dual moves far more gently — this failure may be specific to compressed
+profiles rather than to the method. Untested. Candidate remedies, cheapest first: cap λ and
+add an entropy floor; scale `lambda_lr` with the taper compression (argued for independently
+above); or run at the `paper` profile.
+
+Until one is tried, **this repo has no CADET-vs-CADET-Plan comparison.**
 
 ## What is not reproduced
 
