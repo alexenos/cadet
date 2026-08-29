@@ -226,18 +226,22 @@ where learned behaviour could confirm or refute them. See *Compute* below.
 
 ## Compute
 
-The paper trains 24 configurations for 30M timesteps each. Measured on an RTX 3050 laptop
-(20 CPU cores), with `n_envs=8` and everything else at Table 5 defaults:
+The paper trains 24 configurations for 30M timesteps each. Measured end-to-end on an RTX
+3050 laptop (20 CPU cores) with `n_envs=8` and everything else at Table 5 defaults:
 
-| | throughput | 30M timesteps |
+| | sustained throughput | 30M timesteps |
 |---|---|---|
-| CADET | 363 fps | ~23 h |
-| CADET-Plan | 358 fps | ~23 h |
-| Full 24-cell grid | | **~23 days** |
+| CADET | 502 fps | **16.6 h** (measured) |
+| CADET-Plan | 322 fps | ~25.9 h (extrapolated) |
+| Full 24-cell grid | | **~21 days** |
 
-PPO dominates, not the simulator — the two controllers run at the same speed despite
-CADET-Plan invoking the DP planner, and the environment alone sustains 5,400 / 2,600 steps/s
-respectively. Two consequences:
+The CADET figure is a completed 30M run, not an extrapolation. Note that CADET-Plan is
+**1.6× slower**: once its policy learns to delegate it invokes the DP planner on essentially
+every step. Short benchmarks understate this badly — measured over the first 60k timesteps,
+before the policy has learned to delegate, the two controllers appear equally fast. Any
+throughput number for CADET-Plan taken from an untrained policy is wrong.
+
+Two further consequences:
 
 - **`--subproc` is slower here** (278 fps), because IPC overhead on `8×64×32` observations
   exceeds what parallel env stepping buys back. Leave it off unless you enlarge the AoR.

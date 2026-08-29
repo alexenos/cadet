@@ -194,7 +194,9 @@ Until one is tried, **this repo has no CADET-vs-CADET-Plan comparison.**
 
 ## What is not reproduced
 
-Tables 1–4 and Figures 4–6 require all 24 configurations at 30M timesteps. The only trained
-cell so far is [cadet-plan n=32 P̄=150](runs/2026-08-28-cadet-plan-n32-P150.md) at 6.7% scale, closing 17.9% of the gap — a single data point, not a
-reproduction. `cadet.experiments` runs the grid,
-writes incrementally, and regenerates Table 2/3-style summaries from it.
+Tables 1–4 and Figures 4–6 require all 24 configurations at 30M timesteps. Two cells have
+been trained: [cadet-plan n=32 P̄=150](runs/2026-08-28-cadet-plan-n32-P150.md) at `quick`
+scale (17.9% of the gap closed) and [cadet n=32 P̄=150, paper scale](runs/2026-08-29-cadet-n32-P150-paper.md) at full scale (18.5%). Both fall well short of
+the paper's 42% and 56%, and neither is a reproduction — one cell of twenty-four, a single
+seed, 20 evaluation episodes. `cadet.experiments` runs the grid, writes incrementally, and
+regenerates Table 2/3-style summaries from it.

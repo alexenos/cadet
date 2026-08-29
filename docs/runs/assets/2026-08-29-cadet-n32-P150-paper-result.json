@@ -1,0 +1,24 @@
+[
+  {
+    "controller": "cadet",
+    "lookahead_width": 32,
+    "budget": 150.0,
+    "n_episodes": 20,
+    "episode_length": 3000,
+    "captured_targets": 225.8,
+    "capture_accuracy": 0.6612368873783014,
+    "normalised_power": 0.9295804444444447,
+    "mean_power": 139.43706666666668,
+    "n_lookahead": 553.0,
+    "n_payload": 328.0,
+    "n_sense_noop": 2119.0,
+    "n_roll": 1714.2,
+    "n_delegate": 0.0,
+    "n_move_noop": 1285.8,
+    "ssp_captured": 211.2,
+    "oracle_captured": 290.15,
+    "gap_closed_pct": 18.492716909436382,
+    "profile": "paper",
+    "train_seconds": 59716.03237462044
+  }
+]
