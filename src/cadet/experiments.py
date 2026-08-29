@@ -78,6 +78,7 @@ def run_sweep(
     use_subproc: bool = False,
     use_paper_sigma: bool = False,
     skip_existing: bool = True,
+    checkpoint_freq: int = 0,
 ) -> list[dict[str, Any]]:
     """Train and evaluate every requested cell, appending results to JSON."""
     overrides: dict[str, Any] = {"seed": seed, "device": device}
@@ -90,9 +91,7 @@ def run_sweep(
     results_path.parent.mkdir(parents=True, exist_ok=True)
 
     results: list[dict[str, Any]] = load_results(results_path)
-    done = {
-        (r["controller"], r["lookahead_width"], r["budget"]) for r in results
-    }
+    done = {(r["controller"], r["lookahead_width"], r["budget"]) for r in results}
 
     cells = list(product(controllers, budgets, lookahead_widths))
     for index, (controller, budget, width) in enumerate(cells, start=1):
@@ -112,6 +111,7 @@ def run_sweep(
             output_dir=output_dir,
             use_subproc=use_subproc,
             use_paper_sigma=use_paper_sigma,
+            checkpoint_freq=checkpoint_freq,
             progress_bar=False,
         )
         elapsed = time.time() - started
@@ -232,9 +232,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", default="quick", choices=sorted(PROFILES))
     parser.add_argument("--controllers", nargs="+", default=list(CONTROLLERS))
-    parser.add_argument(
-        "--lookahead", nargs="+", type=int, default=list(LOOKAHEAD_WIDTHS)
-    )
+    parser.add_argument("--lookahead", nargs="+", type=int, default=list(LOOKAHEAD_WIDTHS))
     parser.add_argument("--budgets", nargs="+", type=float, default=list(POWER_BUDGETS))
     parser.add_argument("--output-dir", default="runs")
     parser.add_argument("--results", default="results/sweep.json")
@@ -246,6 +244,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subproc", action="store_true")
     parser.add_argument("--paper-sigma", action="store_true")
     parser.add_argument("--rerun", action="store_true", help="ignore existing results")
+    parser.add_argument(
+        "--checkpoint-freq",
+        type=int,
+        default=0,
+        help="save a checkpoint every N timesteps (0 disables). Worth setting for "
+        "paper-scale runs, which take many hours and are otherwise lost on a crash.",
+    )
     return parser
 
 
@@ -266,6 +271,7 @@ def main(argv: list[str] | None = None) -> None:
         use_subproc=args.subproc,
         use_paper_sigma=args.paper_sigma,
         skip_existing=not args.rerun,
+        checkpoint_freq=args.checkpoint_freq,
     )
     print()
     print(table_two(results))
