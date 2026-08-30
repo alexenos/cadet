@@ -4,7 +4,7 @@
 
 ---
 
-Hi Alex,
+Hi Nick,
 
 I really enjoyed the CADET paper — the framing of sensing and maneuvering as one
 constrained decision problem, rather than the usual look-then-replan decomposition, is a
