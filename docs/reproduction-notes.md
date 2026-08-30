@@ -342,34 +342,54 @@ horizon matches. What is left is a modest but systematic capability gap in the l
 policy — 4.6% fewer targets imaged and 7.4% lower conversion — that compounds into 35 points
 of gap closure through a narrow baseline window.
 
-### Root cause: learned steering falls 25% short of the dynamic program
+### No single cause identified — six hypotheses tested and refuted
 
-[cadet n=32 P̄=1500](runs/2026-08-30-cadet-n32-P1500-paper.md) settles this. At that budget the maximum single-epoch spend is 786 units, 0.52× the
-budget, so the constraint **cannot** bind — λ stayed at exactly 0 for all 30M timesteps,
-removing the primal-dual machinery and isolating the base policy.
+[cadet n=32 P̄=1500](runs/2026-08-30-cadet-n32-P1500-paper.md) was run specifically to isolate the shortfall. At that budget the maximum
+single-epoch spend is 786 units, 0.52× the budget, so the constraint **cannot** bind — λ
+stayed at exactly 0 for all 30M timesteps, removing the primal-dual machinery entirely.
+Result: 237.7 targets against the paper's 258.8, closing 33.5% against 60.1%.
 
-Measuring targets that pass under the payload footprint, independent of when the agent shoots,
-gives a clean measure of trajectory quality:
+Every actionable hypothesis has now been tested directly and refuted:
 
-| trajectory | targets covered per 3,000 epochs | conversion |
+| hypothesis | test | verdict |
 |---|---|---|
-| SSP optimal DP | 607.0 | 0.348 |
-| **learned policy (30M)** | **455.3 (0.75×)** | **0.522** |
-| Oracle DP | 373.7 | 0.776 |
+| Baselines miscalibrated | back-solve from all 24 Table 2 cells | ✗ match within 1% |
+| σ_A is 6% high | rank targets under both values | ✗ identical ordering (corr 0.99983) |
+| Constraint machinery | run where λ cannot activate | ✗ λ ≡ 0, still short |
+| Poor trajectory coverage | substitute the DP trajectory | ✗ **made it worse** |
+| Idles instead of shooting | count targets flown over vs imaged | ✗ images 97% of them |
+| Idles instead of sensing | force every idle epoch to lookahead | ✗ **zero change** in captures |
+| Hyperparameters | compare against Table 5 | ✗ all 14 values match exactly |
 
-The learned policy covers only **75%** of the ground the target-maximising DP achieves (up
-from 0.72 at 15M — improving, but not closed by 30M). The Oracle row shows raw coverage is
-not the goal: it covers *less* than SSP while capturing far more, by steering toward clear
-targets. The learned policy sits between on both axes.
+Two of these deserve detail because they overturn the intuitive reading.
 
-**This explains the paper's CADET < CADET-Plan ordering mechanically.** `delegate` hands the
-policy the DP trajectory for free, so CADET-Plan begins at 607-equivalent coverage while
-CADET must learn it.
+**Forcing better coverage reduces performance.** Pairing the learned sensing policy with the
+SSP dynamic program's trajectory raises coverage from 455 to 607 targets per episode but
+*drops* captures from 237.7 to 207.5 — below the SSP baseline itself. The DP maximises raw
+target count while ignoring clouds; the learned policy steers toward targets it believes are
+*clear*. The Oracle confirms this is the right objective: it covers **less** ground than SSP
+(373.7 vs 607.0) and captures far more (290 vs 211). On both axes the learned policy sits
+correctly between the two — coverage 455, conversion 0.522 against SSP's 0.348 and Oracle's
+0.776.
 
-A secondary defect is unresolved: at evaluation the policy idles on **35%** of epochs and
-uses Ē/P̄ = 0.244 of an available 0.52, despite both alternatives being free in this regime.
-Idling is strictly dominated there. The entropy configuration (`ent_coef = 0.01` with
-deterministic argmax at evaluation) is the prime suspect, untested.
+**Extra information is worthless to it.** Forcing every idle epoch to take a lookahead
+observation more than doubles lookahead actions (809 → 1,836) and changes captures by
+**exactly zero** (238.2 → 238.2), with accuracy unchanged at 0.55. The agent already gathers
+as much cloud information as it can act on.
+
+**What remains** is a modest, distributed shortfall: 237.7 captures against 258.8, or 92% of
+the paper's. Because the SSP→Oracle window is only ~79 targets wide, that 8% deficit becomes
+27 points of gap closure. The behaviour is qualitatively correct on every axis measured; the
+policy is simply somewhat weaker.
+
+**The one untested lever** is a hyperparameter the paper does not specify. Table 5 gives
+"Steps per Update 128" but never states the number of parallel environments. This
+implementation uses 8, so each PPO update sees 1,024 steps; with fewer environments the agent
+would take more, smaller updates on fresher data. Also unspecified: `max_grad_norm`,
+the CNN feature dimension, and λ's initial value.
+
+Seed variance is likewise unmeasured — every result here is seed 0, and the ±6 point interval
+quoted above covers evaluation noise only.
 
 ### Caution: Table 3's P̄ = 1500 accuracy does not reconcile
 
