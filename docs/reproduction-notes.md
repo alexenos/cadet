@@ -342,12 +342,44 @@ horizon matches. What is left is a modest but systematic capability gap in the l
 policy — 4.6% fewer targets imaged and 7.4% lower conversion — that compounds into 35 points
 of gap closure through a narrow baseline window.
 
-The most informative next diagnostic is **not** another run at this cell. The paper's Table 3
-reports capture accuracy across budgets: 0.892 at P̄ = 100, 0.714 at P̄ = 150, 0.202 at
-P̄ = 1500. Those are qualitatively different regimes — at P̄ = 1500 the paper states power is
-effectively unconstrained. Running P̄ = 1500 isolates FOV geometry from constraint handling:
-matching the paper there but not at P̄ = 150 would localise the problem to the primal-dual
-machinery, while falling short at both would point at the base policy or its encoder.
+### Root cause: learned steering falls 25% short of the dynamic program
+
+[cadet n=32 P̄=1500](runs/2026-08-30-cadet-n32-P1500-paper.md) settles this. At that budget the maximum single-epoch spend is 786 units, 0.52× the
+budget, so the constraint **cannot** bind — λ stayed at exactly 0 for all 30M timesteps,
+removing the primal-dual machinery and isolating the base policy.
+
+Measuring targets that pass under the payload footprint, independent of when the agent shoots,
+gives a clean measure of trajectory quality:
+
+| trajectory | targets covered per 3,000 epochs | conversion |
+|---|---|---|
+| SSP optimal DP | 607.0 | 0.348 |
+| **learned policy (30M)** | **455.3 (0.75×)** | **0.522** |
+| Oracle DP | 373.7 | 0.776 |
+
+The learned policy covers only **75%** of the ground the target-maximising DP achieves (up
+from 0.72 at 15M — improving, but not closed by 30M). The Oracle row shows raw coverage is
+not the goal: it covers *less* than SSP while capturing far more, by steering toward clear
+targets. The learned policy sits between on both axes.
+
+**This explains the paper's CADET < CADET-Plan ordering mechanically.** `delegate` hands the
+policy the DP trajectory for free, so CADET-Plan begins at 607-equivalent coverage while
+CADET must learn it.
+
+A secondary defect is unresolved: at evaluation the policy idles on **35%** of epochs and
+uses Ē/P̄ = 0.244 of an available 0.52, despite both alternatives being free in this regime.
+Idling is strictly dominated there. The entropy configuration (`ent_coef = 0.01` with
+deterministic argmax at evaluation) is the prime suspect, untested.
+
+### Caution: Table 3's P̄ = 1500 accuracy does not reconcile
+
+The paper reports capture accuracy 0.202 for CADET at P̄ = 1500. Under the definition matching
+its own SSP figure (35%, attributed to average cloud coverage, i.e. clear-captures ÷
+targets-encountered), 258.8 captures at 0.202 implies 1,281 targets encountered — but the SSP
+dynamic program maximises encounters and reaches only 607 while imaging every epoch, so 1,281
+exceeds a provable bound by 2.1×. Either the denominator differs between that table and the
+SSP figure, or the row is inconsistent. **Capture accuracy at P̄ = 1500 is not a usable
+comparison target;** captured targets is definition-free and remains valid.
 
 ## What is not reproduced
 
