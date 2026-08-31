@@ -95,6 +95,10 @@ where I've diverged:
    slew, reading "an additional power cost" as additive.
 5. `max_grad_norm` = 0.5, CNN feature dimension 256, λ initialised at 0.
 
+Seed variance is not the explanation, in case that's the first thing you'd wonder: a second
+seed at P̄=1500 lands within 2.2 targets (s.e. 4.1) of the first at matched training, about
+10% of the gap I'm asking about.
+
 ## One thing that may be a typo
 
 Table 3 reports capture accuracy 0.202 for CADET at P̄=1500, n=32. Under the definition that

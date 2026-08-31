@@ -388,8 +388,22 @@ implementation uses 8, so each PPO update sees 1,024 steps; with fewer environme
 would take more, smaller updates on fresher data. Also unspecified: `max_grad_norm`,
 the CNN feature dimension, and λ's initial value.
 
-Seed variance is likewise unmeasured — every result here is seed 0, and the ±6 point interval
-quoted above covers evaluation noise only.
+**Seed variance is measured and small.** A second seed was trained at P̄ = 1500 (where the
+constraint cannot bind, so seed effects cannot be confounded by the dual dynamics) and
+compared against seed 0 at a matched 10M timesteps, 20 evaluation episodes each:
+
+| seed | captures | s.e. | gap closed |
+|---|---|---|---|
+| 0 | 230.6 | 3.1 | 24.5% |
+| 1 | 228.4 | 2.7 | 21.8% |
+
+The difference is **+2.2 targets (s.e. 4.1)** — statistically indistinguishable, and 2.7
+points of gap closure against the 26.6-point gap to the paper. Training curves also tracked
+within ~1 reward point at every checkpoint through 51% of training. Seed choice is roughly
+10% the size of the effect and cannot explain the shortfall.
+
+Both seed runs were stopped once this was established rather than trained to 30M; the
+matched-checkpoint comparison answers the question at ~2% of the compute.
 
 ### Caution: Table 3's P̄ = 1500 accuracy does not reconcile
 
