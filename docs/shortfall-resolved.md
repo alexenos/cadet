@@ -183,9 +183,9 @@ but it can no longer affect any result.
 
 | # | change | where | status |
 |---|---|---|---|
-| 1 | Sample the cloud field at lookahead-pixel resolution; add `CloudConfig.field_scale`, defaulting to the paper's convention | [`clouds.py`](../src/cadet/clouds.py), [`config.py`](../src/cadet/config.py), [`env.py`](../src/cadet/env.py) | pending |
-| 2 | Capture accuracy denominator → `n_capture_attempts` | [`env.py`](../src/cadet/env.py) | pending |
-| 3 | Same denominator for the baselines, counting scheduled captures only | [`baselines.py`](../src/cadet/baselines.py) | pending |
+| 1 | Sample the cloud field at lookahead-pixel resolution; add `CloudConfig.field_scale`, defaulting to the paper's convention | [`clouds.py`](../src/cadet/clouds.py), [`config.py`](../src/cadet/config.py), [`env.py`](../src/cadet/env.py) | **done** |
+| 2 | Capture accuracy denominator → `n_capture_attempts` | [`env.py`](../src/cadet/env.py) | **done** |
+| 3 | Same denominator for the baselines, counting scheduled captures only | [`baselines.py`](../src/cadet/baselines.py) | **done** |
 | 4 | Retract the Table 3 typo claim; correct the shortfall narrative | this repo's docs | **done** |
 | 5 | Demote the σ_A discrepancy to a geometry note | [`reproduction-notes.md`](reproduction-notes.md) | **done** |
 | 6 | Retrain both cells under the corrected environment | — | not started |
@@ -193,26 +193,44 @@ but it can no longer affect any result.
 Change 1 needs no edit to target generation: with `Y(p) ≡ Y_A`, the existing
 `target_visible` computation *is* the observed-cloud-free test.
 
+### Baselines under the implemented change
+
+Re-measured by `scripts/verify.py` (10 episodes × 3,000 epochs) with the new defaults:
+
+| quantity | before | now | paper |
+|---|---|---|---|
+| cloud-free surface fraction | 0.343 | 0.347 | ~0.34 |
+| SSP baseline | 210.6 | 206.6 | ~194 (209.5 back-solved) |
+| Oracle baseline | 290.0 | 289.3 | ~295 (291.5 back-solved) |
+| SSP capture accuracy | 0.357 | 0.352 | 0.35 |
+
 ### A consequence worth stating plainly
 
 Adopting the paper's convention makes **Proposition 1 non-calibrated by construction**. A
 target assigned probability 0.7 is cloud free 100% of the time, because
 `Φ((logit τ − logit Y_A)/σ_A) > 0.5` exactly when `Y_A < τ`, which is now the truth
 condition. Ranking is untouched, so no policy behaviour changes — but the
-`Prop 1 calibration (max bin error) < 0.12` check in
-[`scripts/verify.py`](../scripts/verify.py) will fail at roughly 0.4 and has to be
-reframed as a test of discrimination rather than calibration. It also means the accuracy
-figures in Table 3 are not measuring the quantity Proposition 1 predicts.
+`Prop 1 calibration` check in [`scripts/verify.py`](../scripts/verify.py) would fail at
+roughly 0.4 if pointed at the environment's default field. It is instead pinned to
+`field_scale="subpixel"` — the continuous field the proposition is a statement about, where
+it still calibrates to 0.046 — and a new check asserts the environment's actual invariant,
+that ground truth equals the observed cloud-free test on every target. Both pass. It also
+means the accuracy figures in Table 3 are not measuring the quantity Proposition 1
+predicts.
 
 ## 5. Reproducing the numbers here
 
 [`scripts/rescore_under_author_model.py`](../scripts/rescore_under_author_model.py)
-regenerates both §2 tables that depend on the author's field model — the re-scored
-checkpoints and the sweep across lookahead widths. It monkey-patches the field sampler
-rather than editing the environment, so it measures the author's convention against the code
-as it stands today; it becomes unnecessary once change 1 lands. The §1 accuracy figures come
-from the committed evaluations under `results/`, and the naive-shortcut table from the
-unmodified environment.
+regenerates both §2 tables that depend on the field model — the re-scored checkpoints and
+the sweep across lookahead widths. Since change 1 landed it simply evaluates against the
+environment's defaults; `--field-scale subpixel` scores the same checkpoints under the model
+they were actually trained on, which is the comparison the §2 tables make. The §1 accuracy
+figures come from the committed evaluations under `results/`, and the naive-shortcut table
+from a readout applied to the sub-pixel field.
+
+Note that the checkpoint rows remain a *transfer* measurement: those weights were trained
+against `field_scale="subpixel"`. Numbers from a policy trained under the current defaults
+will differ.
 
 ```bash
 python scripts/rescore_under_author_model.py --episodes 20

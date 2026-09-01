@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import itertools
 import time
 
@@ -172,7 +173,12 @@ def group_b(quick: bool) -> None:
 
     # Proposition 1 claims a CALIBRATED probability, not merely a monotone
     # score. Bin predictions and compare to realised frequencies.
-    cfg = CloudConfig()
+    # Proposition 1 is a statement about a *continuous* field: given the block
+    # average Y_A, this is the conditional law of the pointwise value.  Checking
+    # it therefore requires the sub-pixel field, not the environment's default
+    # lookahead-scale one -- under which Y(p) == Y_A and the proposition is
+    # degenerate rather than calibrated (see the truth-vs-observed check below).
+    cfg = dataclasses.replace(CloudConfig(), field_scale="subpixel")
     rng = np.random.default_rng(2)
     model = VisibilityModel(lookahead_width=32)
     block = 4  # one n=32 lookahead pixel, in sub-cell units
@@ -193,7 +199,31 @@ def group_b(quick: bool) -> None:
         if m.sum() < 500:
             continue
         worst = max(worst, abs(float(p[m].mean()) - float(y[m].mean())))
-    check("B", "Prop 1 calibration (max bin error)", f"{worst:.3f}", "< 0.12", worst < 0.12)
+    check(
+        "B",
+        "Prop 1 calibration, sub-pixel field",
+        f"{worst:.3f}",
+        "< 0.12",
+        worst < 0.12,
+    )
+
+    # The environment's default convention, which is the paper's: the field is
+    # drawn at lookahead-pixel scale, so observing a pixel settles whether a
+    # target in it is cloud free.  This must hold exactly, on every target.
+    env = DynamicTaskingEnv(make_env_config(32, 150.0, "cadet", episode_length=400))
+    worst_agreement = 1.0
+    for seed in range(3 if quick else 8):
+        env.reset(seed=seed)
+        observed_clear = env.target_pvis_if_observed > 0.5
+        agreement = float(np.mean(env.target_visible == observed_clear))
+        worst_agreement = min(worst_agreement, agreement)
+    check(
+        "B",
+        "truth == observed cloud-free test",
+        f"{worst_agreement:.3f}",
+        "1.000 (paper convention)",
+        worst_agreement == 1.0,
+    )
 
     # The oracle must beat the cloud-blind plan on the field that actually
     # realised -- otherwise cloud knowledge is not being used.

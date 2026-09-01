@@ -17,6 +17,16 @@ utilities they are given:
 
 Reported performance is the fraction of the gap between the two that a learned
 controller closes.
+
+Two denominators appear here and are deliberately different.  ``mean_power``
+charges the payload on every epoch, which is the upper bound on what an
+unconstrained schedule can spend.  ``capture_accuracy`` divides by *scheduled*
+captures -- epochs where a target actually lies under the footprint -- because
+firing on an empty footprint earns nothing and would only deflate the
+denominator.  Counting all 3,000 epochs gives an SSP accuracy of 0.07 against the
+0.35 the paper quotes, so the paper cannot be charging for empty shots either;
+which of the two it used is an open question with the author (see
+``docs/author-correspondence.md``).
 """
 
 from __future__ import annotations
@@ -43,6 +53,7 @@ class BaselineResult:
     name: str
     captured_targets: int
     targets_imaged: int
+    capture_actions: int
     capture_accuracy: float
     mean_power: float
     normalised_power: float
@@ -54,6 +65,7 @@ class BaselineResult:
             "controller": self.name,
             "captured_targets": float(self.captured_targets),
             "targets_imaged": float(self.targets_imaged),
+            "capture_actions": float(self.capture_actions),
             "capture_accuracy": float(self.capture_accuracy),
             "mean_power": float(self.mean_power),
             "normalised_power": float(self.normalised_power),
@@ -89,12 +101,17 @@ def run_baseline(
     half = env.cfg.sensors.payload_width // 2
     captured_clear = 0
     imaged = 0
+    actions = 0
     for t, col in enumerate(columns):
         lo = max(0, int(col) - half)
         hi = min(AOR_WIDTH, int(col) + half + 1)
         ids = env.target_index[t, lo:hi]
         ids = ids[ids >= 0]
         if ids.size:
+            # A schedule tasks the payload at target accesses, so only these
+            # epochs count as capture actions.  Firing on an empty footprint
+            # would earn nothing and merely deflate the accuracy denominator.
+            actions += 1
             imaged += int(ids.size)
             captured_clear += int(np.count_nonzero(env.target_visible[ids]))
 
@@ -107,7 +124,8 @@ def run_baseline(
         name=name,
         captured_targets=captured_clear,
         targets_imaged=imaged,
-        capture_accuracy=captured_clear / imaged if imaged else 0.0,
+        capture_actions=actions,
+        capture_accuracy=captured_clear / actions if actions else 0.0,
         mean_power=mean_power,
         normalised_power=mean_power / power.budget,
         n_roll=n_roll,

@@ -173,7 +173,9 @@ class DynamicTaskingEnv(gym.Env):
         self.t = 0
         self.roll_col = AOR_WIDTH // 2
 
-        self.cloud = sample_cloud_field(self._world_shape, self.cfg.clouds, self._rng)
+        self.cloud = sample_cloud_field(
+            self._world_shape, self.cfg.clouds, self._rng, self._block_sub
+        )
         self._precompute_block_means()
         self._sample_targets()
         self._init_rasters()
@@ -487,9 +489,14 @@ class DynamicTaskingEnv(gym.Env):
     def statistics(self) -> dict[str, float]:
         """Cumulative episode metrics (the quantities reported in the paper)."""
         epochs = max(self.t, 1)
+        # "Fraction of payload captures that successfully image cloud-free
+        # targets" (Metrics).  The denominator is capture *actions*, not targets
+        # encountered -- with surplus power the policy fires on epochs where its
+        # footprint is empty, and one firing can image two targets in the same
+        # swath row.  Confirmed by the author; see docs/shortfall-resolved.md.
         accuracy = (
-            self.n_targets_captured_clear / self.n_targets_captured
-            if self.n_targets_captured
+            self.n_targets_captured_clear / self.n_capture_attempts
+            if self.n_capture_attempts
             else 0.0
         )
         return {

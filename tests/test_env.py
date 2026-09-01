@@ -295,8 +295,9 @@ def test_reward_only_counts_cloud_free_captures():
     stats = env.statistics()
     assert total == stats["captured_targets"]
     assert stats["captured_targets"] <= stats["targets_imaged"]
+    # The paper's denominator is capture *actions*, not targets encountered.
     assert stats["capture_accuracy"] == pytest.approx(
-        stats["captured_targets"] / stats["targets_imaged"]
+        stats["captured_targets"] / stats["capture_attempts"]
     )
 
 
@@ -351,30 +352,37 @@ def test_lookahead_improves_delegated_planning():
     """Beliefs from lookahead should steer the planner towards clear targets.
 
     Both policies delegate every maneuver; the informed one spends alternate
-    epochs on lookahead sensing.  It captures on half as many epochs, so it is
-    compared on capture *accuracy* -- the quantity the extra information buys.
+    epochs on lookahead sensing.  Both fire on the same number of epochs, many
+    of them empty, so they are compared on *conversion* -- cloud-free captures
+    per target imaged -- rather than on ``capture_accuracy``, whose denominator
+    counts empty shots and therefore measures shot timing rather than the value
+    of the information.
     """
     cfg = make_env_config(64, 1500.0, "cadet-plan", episode_length=300)
     env = DynamicTaskingEnv(cfg)
+
+    def conversion() -> float:
+        stats = env.statistics()
+        imaged = stats["targets_imaged"]
+        return stats["captured_targets"] / imaged if imaged else 0.0
+
     informed, blind = [], []
     for seed in range(10):
         env.reset(seed=seed)
         for step in range(300):
             sense = SENSE_LOOKAHEAD if step % 2 == 0 else SENSE_PAYLOAD
             env.step([MOVE_DELEGATE, sense])
-        informed.append(env.statistics()["capture_accuracy"])
+        informed.append(conversion())
 
         env.reset(seed=seed)
         for step in range(300):
             sense = SENSE_NOOP if step % 2 == 0 else SENSE_PAYLOAD
             env.step([MOVE_DELEGATE, sense])
-        blind.append(env.statistics()["capture_accuracy"])
+        blind.append(conversion())
 
     # Without observations the planner sees a uniform prior and can only chase
-    # target density, so its accuracy is the ambient cloud-free fraction.
+    # target density, so its conversion is the ambient cloud-free fraction.
     assert np.mean(blind) == pytest.approx(1 / 3, abs=0.1)
-    # Lookahead is noisy at n = 64 (sigma_A ~ 1.4), so the lift is real but
-    # bounded well below perfect discrimination.
     assert np.mean(informed) > np.mean(blind) + 0.05
     assert sum(i > b for i, b in zip(informed, blind, strict=True)) >= 7
 

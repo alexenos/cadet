@@ -191,7 +191,7 @@ def render(
             f"| Targets captured | **{result['captured_targets']:.1f}** | "
             f"SSP {ssp:.1f} · Oracle {orc:.1f} |",
             f"| Gap closed | **{result['gap_closed_pct']:.1f}%** | paper: 56% avg (CADET-Plan) |",
-            f"| Capture accuracy | {result['capture_accuracy']:.3f} | SSP 0.342 |",
+            f"| Capture accuracy | {result['capture_accuracy']:.3f} | SSP 0.366 |",
             f"| Normalised energy Ē/P̄ | {result['normalised_power']:.2f} | "
             f"{'within budget' if result['normalised_power'] <= 1 else 'OVER BUDGET'} |",
             f"| Evaluation | {result['n_episodes']} episodes × "

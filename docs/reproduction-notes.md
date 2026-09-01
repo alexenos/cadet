@@ -92,12 +92,15 @@ integers. This is the coarsest resolution that puts every configuration on exact
 boundaries. Targets are placed at a uniformly random sub-cell within their AoR cell, since
 `p_i` is a point on the surface rather than a whole cell.
 
-> **This is where the implementations diverge**, and it is the larger half of the shortfall
-> below. The author's implementation models the field at *lookahead-pixel* scale and sets
-> `is_cloud_free = is_observed_cloud_free`, so a lookahead observation is decisive; here a
-> capture stays a weighted coin flip even after a perfect look. The reasoning above — that
-> simulating at AoR resolution would collapse the uncertainty Proposition 1 models — is
-> sound, but the paper's own implementation accepts exactly that collapse. See
+> **This was where the implementations diverged, and it is now resolved in favour of the
+> paper.** `CloudConfig.field_scale` defaults to `"lookahead"`: the latent field is drawn on
+> the lookahead-pixel grid and held constant within a pixel, so `Y(p) = Y_A` and a lookahead
+> observation settles a target's visibility — the author's
+> `is_cloud_free = is_observed_cloud_free`. The reasoning above, that simulating at pixel
+> resolution collapses the uncertainty Proposition 1 models, is correct; the paper's own
+> implementation accepts that collapse, and reproducing its numbers means accepting it too.
+> The sub-cell model described here remains available as `field_scale="subpixel"`, and is
+> what the Proposition 1 calibration check runs against. See
 > [`shortfall-resolved.md`](shortfall-resolved.md) §2.
 
 ## Target counts

@@ -164,13 +164,18 @@ def sample_latent_field(
     cfg: CloudConfig,
     rng: np.random.Generator,
     return_diagnostics: bool = False,
+    spacing_km: float | None = None,
 ):
-    """Sample a zero-mean unit-variance GRF on a ``shape`` grid of sub-cells.
+    """Sample a zero-mean unit-variance GRF on a ``shape`` grid.
 
     Uses the Dietrich-Newsam circulant embedding: the covariance is embedded on a
     padded torus, diagonalised by a 2-D FFT, and a complex Gaussian is filtered
     by the square-root spectrum.  The real part is returned; negative eigenvalues
     (an artefact of finite padding) are clipped to zero.
+
+    ``spacing_km`` is the physical distance between adjacent grid points; it
+    defaults to one sub-cell.  Passing a coarser spacing is how
+    :func:`sample_cloud_field` draws the field on the lookahead-pixel grid.
 
     Returns the field, or ``(field, negative_eigenvalue_fraction)`` when
     ``return_diagnostics`` is set.
@@ -178,8 +183,9 @@ def sample_latent_field(
     rows, cols = shape
     pad = int(cfg.circulant_pad)
     prows, pcols = rows + pad, cols + pad
+    spacing = cfg.subpixel_km if spacing_km is None else float(spacing_km)
 
-    sqrt_lam, neg_mass = _sqrt_spectrum(prows, pcols, cfg.subpixel_km, cfg)
+    sqrt_lam, neg_mass = _sqrt_spectrum(prows, pcols, spacing, cfg)
 
     noise = rng.standard_normal((prows, pcols)) + 1j * rng.standard_normal(
         (prows, pcols)
@@ -245,10 +251,41 @@ def sample_cloud_field(
     world_shape: tuple[int, int],
     cfg: CloudConfig,
     rng: np.random.Generator,
+    block_subcells: int = 1,
 ) -> CloudField:
-    """Draw an observable cloud field over a ``(height, width)`` AoR-cell world."""
+    """Draw an observable cloud field over a ``(height, width)`` AoR-cell world.
+
+    ``block_subcells`` is the side of one lookahead pixel in sub-cells.  Under
+    ``cfg.field_scale == "lookahead"`` the latent field is drawn on that coarser
+    grid and replicated across each pixel, so the block average a lookahead
+    observation returns *is* the pointwise value and a target's visibility is
+    settled by observing it.  The marginal cloud-free fraction is then
+    ``Phi(-beta / alpha)`` for every field of view, because ``Y_A`` is itself a
+    transformed unit-variance Gaussian rather than an average of several.
+
+    Under ``"subpixel"`` the argument is ignored and the field is drawn at
+    sub-cell resolution, leaving genuine within-pixel variability.
+    """
     s = cfg.subpixels_per_cell
-    latent = sample_latent_field((world_shape[0] * s, world_shape[1] * s), cfg, rng)
+    rows, cols = world_shape[0] * s, world_shape[1] * s
+
+    block = int(block_subcells) if cfg.field_scale == "lookahead" else 1
+    if block < 1:
+        raise ValueError(f"block_subcells must be positive; got {block_subcells}.")
+    if rows % block or cols % block:
+        raise ValueError(
+            f"Sub-cell grid {rows}x{cols} is not tileable by {block}x{block} "
+            "lookahead pixels."
+        )
+
+    latent = sample_latent_field(
+        (rows // block, cols // block),
+        cfg,
+        rng,
+        spacing_km=block * cfg.subpixel_km,
+    )
     transformed = cfg.alpha * latent + cfg.beta
     values = 1.0 / (1.0 + np.exp(-transformed, dtype=np.float32))
+    if block > 1:
+        values = np.repeat(np.repeat(values, block, axis=0), block, axis=1)
     return CloudField(values=values.astype(np.float32), cfg=cfg)

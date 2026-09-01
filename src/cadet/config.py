@@ -61,6 +61,27 @@ class CloudConfig:
     subpixels_per_cell: int = 4
     #: Circulant padding (in sub-cells) used by the GRF sampler.
     circulant_pad: int = 48
+    #: Scale at which the field is simulated.
+    #:
+    #: ``"lookahead"`` draws it on the lookahead-pixel grid and holds it
+    #: constant within a pixel, so ``Y(p) = Y_A`` and a lookahead observation
+    #: settles whether a target is cloud free.  This is the convention the
+    #: paper's own implementation uses (the authors set
+    #: ``is_cloud_free = is_observed_cloud_free``), and it is the default here.
+    #:
+    #: ``"subpixel"`` draws it at ``subpixels_per_cell`` resolution and reads
+    #: ground truth pointwise, so a capture stays uncertain even after a perfect
+    #: observation.  More physically realistic, and the setting under which
+    #: Proposition 1 is genuinely calibrated -- but it is not what produced the
+    #: published numbers.  See ``docs/shortfall-resolved.md``.
+    field_scale: str = "lookahead"
+
+    def __post_init__(self) -> None:
+        if self.field_scale not in ("lookahead", "subpixel"):
+            raise ValueError(
+                f"field_scale must be 'lookahead' or 'subpixel'; got "
+                f"{self.field_scale!r}."
+            )
 
     @property
     def subpixel_km(self) -> float:

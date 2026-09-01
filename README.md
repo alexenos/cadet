@@ -179,10 +179,10 @@ Reproduced without any training, from the models alone:
 
 | Quantity | Paper | This implementation |
 |---|---|---|
-| Cloud-free surface fraction | ~0.34 | 0.343 |
-| SSP baseline (3,000-epoch episodes) | ~194 | 210.6 |
-| Oracle baseline | ~295 | 290.0 |
-| SSP capture accuracy | 0.35 | 0.357 |
+| Cloud-free surface fraction | ~0.34 | 0.347 |
+| SSP baseline (3,000-epoch episodes) | ~194 | 206.6 |
+| Oracle baseline | ~295 | 289.3 |
+| SSP capture accuracy | 0.35 | 0.352 |
 | Policy parameters | ~2.2M | 2,157,224 (CADET-Plan); 2,156,967 (CADET) |
 | σ_A for n = 8/16/32/64 | 0.58 / 0.79 / 1.07 / 1.38 | 0.62 / 0.85 / 1.13 / 1.45 |
 
@@ -198,14 +198,17 @@ Everything above is re-derived from scratch by one script — no trained policy,
 python scripts/verify.py
 ```
 
-It runs 18 checks in about 30 seconds, in three groups:
+It runs 19 checks in about 30 seconds, in three groups:
 
 - **Paper values** recomputed from the models — cloud-free fraction, the four σ_A
   values of Figure 3, both baselines, capture accuracy, parameter count.
 - **Internal correctness** against independently computed ground truth — the SSP dynamic
   program is checked against *brute-force enumeration* of every agility-feasible path,
   and Proposition 1 is checked for **calibration** (among targets assigned probability
-  p, a fraction ≈p really are clear) rather than mere monotonicity. It also replays each
+  p, a fraction ≈p really are clear) rather than mere monotonicity, against the
+  sub-pixel field the proposition is a statement about. A separate check asserts the
+  environment's own convention — that ground truth equals the observed cloud-free test
+  — holds exactly on every target. It also replays each
   baseline's own trajectory back through `env.step()` and requires the reward to match
   the offline score exactly — the baselines are scored offline while a trained policy is
   scored online, so the two accountings must agree or every gap-closure number would be
@@ -230,8 +233,9 @@ field is modelled at lookahead-pixel scale with ground truth equal to the observ
 test, and capture accuracy is divided by capture *actions*. Re-scored under those conventions
 — same weights, nothing retrained — the cells close **69.3%** and **65.2%** of the gap
 against the paper's 56.1% and 60.1%, and capture accuracy at P̄ = 1500 matches to within 2%.
-The environment does not yet implement them; see
-[`docs/shortfall-resolved.md`](docs/shortfall-resolved.md).
+Both conventions are now the environment's defaults, so the trained-cell figures quoted in
+[`docs/runs/`](docs/runs/README.md) predate them and will change on the next training run.
+See [`docs/shortfall-resolved.md`](docs/shortfall-resolved.md).
 
 ---
 
