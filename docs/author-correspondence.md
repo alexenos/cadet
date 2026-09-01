@@ -1,8 +1,23 @@
-# Draft email to the author
+# Correspondence with the author
 
-**Subject:** Reproducing CADET — an LLM-only implementation, and a gap I can't explain
+A record of the exchange with Nick Nordlund, first author of the paper this repo
+reproduces. Messages appear in the order they were sent, verbatim.
+
+Two claims in the outgoing message were overturned by the reply. They are left as written
+— this is a record, not a position — and flagged inline where they appear. The
+investigation the reply prompted is written up in
+[`shortfall-resolved.md`](shortfall-resolved.md).
+
+| # | date | from | subject |
+|---|---|---|---|
+| 1 | 2026-08-30 | Dax Garner | Reproducing CADET — an LLM-only implementation, and a gap I can't explain |
+| 2 | 2026-09-01 | Nick Nordlund | *(reply)* |
 
 ---
+
+## 1 — Sent 2026-08-30
+
+**Subject:** Reproducing CADET — an LLM-only implementation, and a gap I can't explain
 
 Hi Nick,
 
@@ -55,6 +70,11 @@ Both satisfy the power constraint (Ē/P̄ of 0.93 and 0.24). In target terms I'm
 92% of your numbers — but because the SSP→Oracle window is only ~79 targets wide, an 8%
 capture deficit becomes ~27 points of gap closure.
 
+> **Overturned by the reply.** The deficit was a modelling difference, not a weaker policy.
+> Re-scoring these same two checkpoints under the cloud model described in message 2 gives
+> 267.6 and 264.1 targets — 69.3% and 65.2% of the gap closed, *above* the paper.
+> See [`shortfall-resolved.md`](shortfall-resolved.md).
+
 ## What I ruled out
 
 I tested each of these directly rather than reasoning about them:
@@ -91,6 +111,8 @@ where I've diverged:
 3. **Lookahead pixel size.** I read the geometry as L = (n/32)·250/32 km. This gives σ_A
    about 6% above Figure 3 — consistently, across all four widths, suggesting a small
    geometric convention I've guessed wrong.
+   *(Immaterial, given the reply: under the paper's convention σ_A never enters the ground
+   truth, only the scale of a monotone belief feature.)*
 4. **Delegation cost.** 18 units for the planner call, plus 36 if the returned command is a
    slew, reading "an additional power cost" as additive.
 5. `max_grad_norm` = 0.5, CNN feature dimension 256, λ initialised at 0.
@@ -100,6 +122,11 @@ seed at P̄=1500 lands within 2.2 targets (s.e. 4.1) of the first at matched tra
 10% of the gap I'm asking about.
 
 ## One thing that may be a typo
+
+> **Withdrawn.** This was wrong, and the reply explains why: the denominator is capture
+> *actions*, not targets encountered. Under that definition our own P̄ = 1500 checkpoint
+> scores 0.2018 against the paper's 0.202. The argument below is correct arithmetic on the
+> wrong denominator.
 
 Table 3 reports capture accuracy 0.202 for CADET at P̄=1500, n=32. Under the definition that
 matches your SSP figure (35%, attributed to average cloud coverage — i.e. clear captures ÷
@@ -124,3 +151,65 @@ result in itself, and says something good about how clearly the paper is written
 
 Best,
 Dax
+
+---
+
+## 2 — Received 2026-09-01
+
+Hi Dax,
+
+Wow, thanks for this. This is really cool!
+
+I suspect the reason for the 8% difference in the number of cloud-free captures comes down
+to how we modeled the cloud fields and determined whether a target was cloudy or cloud-free.
+
+Your code models cloud details at the scale of the payload sensor for ground truth
+visibility and does spatial averaging over nearby pixels to determine the observed cloud
+value. To speed up training, our implementation instead modeled clouds at the scale of the
+lookahead sensor (observed cloud visibility) and added noise according to the model in
+Prop. 1 to simulate the true visibility. Because this noise changed the ground truth
+visibility depending on the FOV of the lookahead, we set
+`is_cloud_free = is_observed_cloud_free` for consistency across the evaluations.
+
+Claude's implementation is probably more realistic, but it required additional assumptions
+on how we modeled subpixel variability, so we went with the version used in the paper
+instead.
+
+Regarding the capture accuracy typo, we measured "accuracy" as total cloud-free captures /
+total capture actions. When the power budgets were unlimited, the agent would occasionally
+take capture actions even when there was no target within its footprint.
+
+Thanks again for digging into this! I'm impressed by how close Claude got from the paper
+alone!
+
+Nick
+
+---
+
+## What the reply settled
+
+Both points were tested directly rather than taken on trust, and both hold. The two
+conventions together account for the entire shortfall the outgoing message asked about:
+
+| n = 32 | P̄ = 150 | P̄ = 1500 |
+|---|---|---|
+| reported to the author | 225.8 (18.5% of the gap) | 237.7 (33.5%) |
+| same weights, author's conventions | **267.6 ± 2.9 (69.3%)** | **264.1 ± 2.9 (65.2%)** |
+| paper | 255.5 (56.1%) | 258.8 (60.1%) |
+
+The full investigation, the evidence behind each row, and the resulting change list are in
+[`shortfall-resolved.md`](shortfall-resolved.md).
+
+## Open questions for a follow-up
+
+1. **Baseline accuracy denominator.** Under "cloud-free captures ÷ capture actions", the
+   `ssp` baseline fires the payload every epoch and scores 0.070, not the 35% quoted beside
+   Figure 5. 35% is the cloud-free base rate, which is what the ratio gives if the baseline
+   is charged only for *scheduled* captures. Confirming which the paper used would settle
+   how to report the baseline row.
+2. **Proposition 1 is not calibrated under this convention.** With
+   `is_cloud_free = is_observed_cloud_free`, a target assigned probability 0.7 is cloud free
+   100% of the time, not 70% — the ordering is untouched, so no policy changes, but the
+   quantity Prop. 1 predicts is no longer the quantity the accuracy metric measures.
+3. **Number of parallel environments** — asked in message 1, not yet answered, and still
+   the largest unspecified hyperparameter.

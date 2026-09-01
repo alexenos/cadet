@@ -7,6 +7,11 @@ is written by hand and preserved when a report is regenerated.
 Claims in [`../reproduction-notes.md`](../reproduction-notes.md) cite these where evidence
 exists, rather than asserting behaviour.
 
+> **Gap-closed figures below are measured under this repo's cloud model, which differs from
+> the paper's.** Under the author's conventions the two paper-scale cells score 69.3% and
+> 65.2% rather than 18.5% and 33.5%. Nothing was retrained; see
+> [`../shortfall-resolved.md`](../shortfall-resolved.md).
+
 | date | run | scale | gap closed | Ē/P̄ | notes |
 |---|---|---|---|---|---|
 | 2026-08-28 | [cadet-plan n=32 P̄=150](2026-08-28-cadet-plan-n32-P150.md) | quick (2M) | 17.9% | 0.84 | First trained cell. Curriculum collapse and recovery; delegates every epoch. |

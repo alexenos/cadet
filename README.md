@@ -186,7 +186,9 @@ Reproduced without any training, from the models alone:
 | Policy parameters | ~2.2M | 2,157,224 (CADET-Plan); 2,156,967 (CADET) |
 | σ_A for n = 8/16/32/64 | 0.58 / 0.79 / 1.07 / 1.38 | 0.62 / 0.85 / 1.13 / 1.45 |
 
-The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md), whose claims cite evidence from individual [training runs](docs/runs/README.md).
+The σ_A row is ~6% high; see [`docs/reproduction-notes.md`](docs/reproduction-notes.md), whose claims cite evidence from individual [training runs](docs/runs/README.md). Under the
+paper's own convention σ_A never enters the ground truth, so that discrepancy cannot affect
+any result.
 
 ### Checking this yourself
 
@@ -216,11 +218,20 @@ It runs 18 checks in about 30 seconds, in three groups:
 something regressed.
 Pass `--paper-sigma` anywhere to pin the printed values instead.
 
-**Learned-controller results are not reproduced here.** No policy in this repo has been
-trained beyond a smoke run. The paper's central claims — CADET closing 42% of the SSP→Oracle
-gap and CADET-Plan 56%, plus Tables 1–4 and Figures 4–6 — are therefore **unvalidated**: the
-apparatus that would test them is built and verified, but it has not been run at a scale
-where learned behaviour could confirm or refute them. See *Compute* below.
+**Learned-controller results are not reproduced here.** Two of the paper's twenty-four
+configurations have been trained at full 30M-timestep scale, one seed each. The paper's
+central claims — CADET closing 42% of the SSP→Oracle gap and CADET-Plan 56%, plus Tables 1–4
+and Figures 4–6 — remain **unvalidated** at that coverage. See *Compute* below.
+
+**The two trained cells are close to the paper once the modelling conventions match.** The
+first author [replied](docs/author-correspondence.md) to a write-up of an apparent 8% capture
+shortfall and identified two places where his implementation differs from this one: the cloud
+field is modelled at lookahead-pixel scale with ground truth equal to the observed cloud-free
+test, and capture accuracy is divided by capture *actions*. Re-scored under those conventions
+— same weights, nothing retrained — the cells close **69.3%** and **65.2%** of the gap
+against the paper's 56.1% and 60.1%, and capture accuracy at P̄ = 1500 matches to within 2%.
+The environment does not yet implement them; see
+[`docs/shortfall-resolved.md`](docs/shortfall-resolved.md).
 
 ---
 
