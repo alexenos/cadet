@@ -178,6 +178,10 @@ def train(
         "budget": budget,
         "policy_parameters": count_parameters(model.policy),
         "train_config": train_config.to_dict(),
+        # Recorded so a run report can say which cloud model produced its
+        # numbers; runs predating 2026-09-01 have no such key and were trained
+        # against the sub-pixel field.  See docs/shortfall-resolved.md.
+        "field_scale": env_config.clouds.field_scale,
         "sigma_a": DynamicTaskingEnv(
             env_config, use_paper_sigma=use_paper_sigma
         ).visibility.sigma_a,

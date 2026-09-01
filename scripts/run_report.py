@@ -134,7 +134,12 @@ def transitions(recs: list[dict[str, float]]) -> tuple[str, dict[str, float]]:
 
 
 def render(
-    meta: dict, result: dict | None, recs: list[dict[str, float]], run_dir: Path, figure: str | None
+    meta: dict,
+    result: dict | None,
+    recs: list[dict[str, float]],
+    run_dir: Path,
+    figure: str | None,
+    out_path: Path,
 ) -> str:
     cfg = meta.get("train_config", {})
     trans_md, _ = transitions(recs)
@@ -153,6 +158,11 @@ def render(
         f"*Generated {date.today().isoformat()} by `scripts/run_report.py`.*",
         "",
     ]
+    # Runs predating the 2026-09-01 convention change carry no "field_scale"
+    # key; they were trained against the sub-pixel field.
+    field_scale = meta.get("field_scale", "subpixel")
+    current_conventions = field_scale == "lookahead"
+
     if incomplete:
         out += [
             f"> **Stopped early.** Reached {reached:,.0f} of {planned:,.0f} configured "
@@ -174,6 +184,9 @@ def render(
         f"| Seed | {cfg.get('seed')} |",
         f"| Device | {cfg.get('device')} |",
         f"| σ_A | {meta.get('sigma_a'):.4f} |",
+        f"| Cloud model | `field_scale={field_scale}`"
+        + ("" if current_conventions else " (superseded)")
+        + " |",
         f"| Policy parameters | {meta.get('policy_parameters'):,} |",
         f"| Curriculum | slack {cfg.get('initial_slack')} held to "
         f"{cfg.get('warmup_steps'):,}, tapered over {cfg.get('taper_steps'):,} |",
@@ -183,15 +196,26 @@ def render(
 
     if result:
         ssp, orc = result["ssp_captured"], result["oracle_captured"]
+        out += ["## Result", ""]
+        if not current_conventions:
+            out += [
+                "> **Measured under superseded conventions.** This run predates the "
+                "cloud model and capture-accuracy denominator adopted on 2026-09-01, so "
+                "the figures below are not comparable with the paper or with later runs. "
+                "Ground truth was read pointwise from a sub-pixel field rather than at "
+                "lookahead-pixel scale, and capture accuracy divided by targets imaged "
+                "rather than by capture actions. See "
+                "[`shortfall-resolved.md`](../shortfall-resolved.md).",
+                "",
+            ]
         out += [
-            "## Result",
-            "",
             "| quantity | value | reference |",
             "|---|---|---|",
             f"| Targets captured | **{result['captured_targets']:.1f}** | "
             f"SSP {ssp:.1f} · Oracle {orc:.1f} |",
             f"| Gap closed | **{result['gap_closed_pct']:.1f}%** | paper: 56% avg (CADET-Plan) |",
-            f"| Capture accuracy | {result['capture_accuracy']:.3f} | SSP 0.366 |",
+            f"| Capture accuracy | {result['capture_accuracy']:.3f} | "
+            f"SSP {0.366 if current_conventions else 0.342:.3f} |",
             f"| Normalised energy Ē/P̄ | {result['normalised_power']:.2f} | "
             f"{'within budget' if result['normalised_power'] <= 1 else 'OVER BUDGET'} |",
             f"| Evaluation | {result['n_episodes']} episodes × "
@@ -208,10 +232,22 @@ def render(
     out += ["## Training dynamics", "", trans_md, "", phase_table(recs), ""]
     if figure:
         out += [f"![training diagnostics]({figure})", ""]
+    # Link every committed asset explicitly: scripts/check_docs.py verifies
+    # markdown links against `git ls-files`, so a bare mention of `assets/`
+    # would leave these files unverified and able to vanish from a fresh clone.
+    stem = out_path.stem
+    assets = [
+        (f"assets/{stem}.png", "Diagnostics figure"),
+        (f"assets/{stem}-history.csv", f"Metric history — thinned from {len(recs):,} rollouts"),
+        (f"assets/{stem}-result.json", "Evaluation result"),
+    ]
+    out += ["## Artifacts", "", "Committed with this write-up:", ""]
     out += [
-        "## Artifacts",
-        "",
-        f"Committed with this write-up: see `assets/`. Metric history is {len(recs):,} rollouts.",
+        f"- [{label}]({path})"
+        for path, label in assets
+        if (out_path.parent / path).exists()
+    ]
+    out += [
         "",
         f"Not committed (regenerable, and `model.zip` is large): `{run_dir.as_posix()}/`.",
         "",
@@ -258,7 +294,7 @@ def main() -> None:
             rows[0] if rows else None,
         )
 
-    body = render(meta, result, recs, args.run, args.figure)
+    body = render(meta, result, recs, args.run, args.figure, args.out)
 
     # Preserve hand-written analysis across regeneration.
     if args.out.exists():

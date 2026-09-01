@@ -7,10 +7,13 @@ is written by hand and preserved when a report is regenerated.
 Claims in [`../reproduction-notes.md`](../reproduction-notes.md) cite these where evidence
 exists, rather than asserting behaviour.
 
-> **Gap-closed figures below are measured under this repo's cloud model, which differs from
-> the paper's.** Under the author's conventions the two paper-scale cells score 69.3% and
-> 65.2% rather than 18.5% and 33.5%. Nothing was retrained; see
-> [`../shortfall-resolved.md`](../shortfall-resolved.md).
+> **Every run below predates the 2026-09-01 convention change and its figures are not
+> comparable with the paper.** All were trained against `field_scale="subpixel"` with capture
+> accuracy divided by targets imaged; the environment now uses the paper's lookahead-scale
+> cloud model and divides by capture actions. Re-scored under the current conventions the two
+> paper-scale cells close 69.3% and 65.2% rather than 18.5% and 33.5%. Each write-up carries
+> the same caveat above its result table, and `run_report.py` regenerates it from the run's
+> own metadata. See [`../shortfall-resolved.md`](../shortfall-resolved.md).
 
 | date | run | scale | gap closed | Ē/P̄ | notes |
 |---|---|---|---|---|---|
