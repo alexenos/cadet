@@ -202,14 +202,21 @@ The full investigation, the evidence behind each row, and the resulting change l
 
 ## Open questions for a follow-up
 
-1. **Baseline accuracy denominator.** Under "cloud-free captures ÷ capture actions", the
+1. **Was the Prop-1 noise dropped from the training environment, or only from how the
+   evaluation metrics were computed?** This is the one that matters most. Retraining with
+   `is_cloud_free = is_observed_cloud_free` applied throughout closes 82.0% of the gap against
+   a published 56.1%, at capture accuracy 0.990 against 0.714 — and where a lookahead
+   observation is decisive, a well-trained agent should be near-perfect, so 0.714 suggests
+   residual uncertainty was present during training. See
+   [`truth-noise-hypothesis.md`](truth-noise-hypothesis.md).
+2. **Baseline accuracy denominator.** Under "cloud-free captures ÷ capture actions", the
    `ssp` baseline fires the payload every epoch and scores 0.070, not the 35% quoted beside
    Figure 5. 35% is the cloud-free base rate, which is what the ratio gives if the baseline
    is charged only for *scheduled* captures. Confirming which the paper used would settle
    how to report the baseline row.
-2. **Proposition 1 is not calibrated under this convention.** With
+3. **Proposition 1 is not calibrated under this convention.** With
    `is_cloud_free = is_observed_cloud_free`, a target assigned probability 0.7 is cloud free
    100% of the time, not 70% — the ordering is untouched, so no policy changes, but the
    quantity Prop. 1 predicts is no longer the quantity the accuracy metric measures.
-3. **Number of parallel environments** — asked in message 1, not yet answered, and still
+4. **Number of parallel environments** — asked in message 1, not yet answered, and still
    the largest unspecified hyperparameter.

@@ -248,13 +248,16 @@ Plain CADET now exceeds the paper's *CADET-Plan* figure for this cell, and reach
 the Oracle. The overshoot is therefore real and larger than the shortfall this document was
 written to explain. The sharpest clue is accuracy — 0.990 against a published 0.714. Where a
 lookahead observation is decisive, a well-trained agent should be near-perfect on targets it
-has observed, so a 29% miss rate suggests the paper's agent shoots at unobserved targets or
-works from a less informative observation. This implementation supplies a belief raster
-carrying the Proposition 1 probability per target alongside separate cloud value and mask
-channels; if the paper's observation encoded less, its agent would discriminate less well and
-spend power on marginal targets — which is what its 1.03 Ē/P̄ and 0.714 accuracy describe.
-That is a hypothesis, testable by ablating the belief channel, and the natural next question
-for the author.
+has observed, so a 29% miss rate means the paper's agent faced residual uncertainty that this
+build removes.
+
+An earlier explanation offered here — that our observation might be richer than theirs — is
+**withdrawn**: the paper specifies the same eight channels, including the Proposition 1
+probability raster. The working explanation is now that the Prop-1 noise was dropped from the
+*metric* rather than from the training reward, making §2's change stronger than what the paper
+actually ran. That is set out with a pre-registered prediction in
+[`truth-noise-hypothesis.md`](truth-noise-hypothesis.md), and is being tested by the next
+training run.
 
 Also worth recording: the run converged by ~12M timesteps. The 20M checkpoint evaluates at
 278.7 and the final 30M at 278.2, identical within error, so the last 18M bought nothing.

@@ -174,15 +174,21 @@ at the task.
 
 The sharpest clue is accuracy — **0.990 here against 0.714 published**. Under a convention
 where a lookahead observation is decisive, a well-trained agent should be near-perfect on
-targets it has observed, so a 29% miss rate implies the paper's agent is shooting at targets
-it has not observed, or is working from a less informative observation. One concrete
-candidate: this implementation hands the policy a belief raster carrying the Proposition 1
-probability per target, plus separate cloud value and mask channels. If the paper's
-observation encoded less, its agent would be less able to discriminate, and would spend
-power on marginal targets — which is exactly the 1.03 Ē/P̄ and 0.714 accuracy it reports.
+targets it has observed, so a 29% miss rate implies the paper's agent faced residual
+uncertainty this run does not.
 
-That is a hypothesis, not a finding. It is testable by ablating the belief channel, and it is
-the natural next question for the author.
+> **A first explanation offered here was wrong and is withdrawn.** It proposed that our agent
+> might see a richer observation — a belief raster carrying the Proposition 1 probability that
+> the paper's agent may have lacked. The paper specifies `C = 8` channels including *"the
+> probability of point visibility given block visibility according to Proposition (1)"*, plus
+> the cloud value and mask channels: our tensor exactly. The observation spaces match and
+> cannot explain the difference.
+
+The working explanation is now that the Prop-1 noise was removed only from the *metric*, not
+from the training reward — which would leave this run's environment easier than the paper's.
+That is written up with a pre-registered prediction in
+[`truth-noise-hypothesis.md`](../truth-noise-hypothesis.md) and is the subject of the next
+training run.
 
 ### What this does confirm
 
