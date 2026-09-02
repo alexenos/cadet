@@ -303,6 +303,20 @@ class DynamicTaskingEnv(gym.Env):
         self.target_pvis_if_observed = self.visibility(measured).astype(np.float32)
         self.target_belief = np.full(n, self.visibility.prior, dtype=np.float32)
 
+        # Ground truth the payload *reward* is paid on.  With truth_noise set,
+        # it is a Bernoulli draw from Proposition 1 -- exactly "add noise
+        # according to Prop. 1 to simulate the true visibility" -- so a target
+        # believed 70% clear really does fail 30% of the time and sigma_A
+        # governs the reward.  Drawn once per episode: visibility is a latent
+        # property of the world, not resampled per shot.  Without it, the reward
+        # and the metric are the same quantity, as they were before.
+        if self.cfg.clouds.truth_noise:
+            self.target_reward_visible = (
+                self._rng.random(n) < self.target_pvis_if_observed
+            )
+        else:
+            self.target_reward_visible = self.target_visible
+
         # Index of the (at most one) target occupying each world cell.
         self.target_index = np.full(self._world_shape, -1, dtype=np.int32)
         self.target_index[rows, cols] = np.arange(n, dtype=np.int32)
@@ -401,7 +415,13 @@ class DynamicTaskingEnv(gym.Env):
             return 0.0
 
         self.target_captured[ids] = True
+        # Two notions of "cloud free", identical unless CloudConfig.truth_noise
+        # is set.  The reported metric always uses the deterministic test, so
+        # captured_targets and both baselines are scored against a common world
+        # for every field of view; the reward may be paid on a noisy draw, which
+        # is what the agent actually learns from.
         successes = int(np.count_nonzero(self.target_visible[ids]))
+        paid = int(np.count_nonzero(self.target_reward_visible[ids]))
         self.n_targets_captured += int(ids.size)
         self.n_targets_captured_clear += successes
 
@@ -412,7 +432,7 @@ class DynamicTaskingEnv(gym.Env):
         self.raster_clear[rows, cols] = 0.0
         self.raster_obscured[rows, cols] = 0.0
         self.raster_belief[rows, cols] = 0.0
-        return float(successes)
+        return float(paid)
 
     # ------------------------------------------------------------------
     # Planner delegation

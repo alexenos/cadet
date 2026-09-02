@@ -75,12 +75,32 @@ class CloudConfig:
     #: Proposition 1 is genuinely calibrated -- but it is not what produced the
     #: published numbers.  See ``docs/shortfall-resolved.md``.
     field_scale: str = "lookahead"
+    #: Pay the payload *reward* on a Bernoulli draw from Proposition 1 rather
+    #: than on the deterministic test, while every reported metric and both
+    #: baselines keep the deterministic one.
+    #:
+    #: This is the second reading of the author's "we set
+    #: ``is_cloud_free = is_observed_cloud_free`` for consistency across the
+    #: evaluations": that the Prop-1 noise was dropped from the *metric* so the
+    #: 24 cells share a common world, but stayed in the training reward.  It
+    #: restores sigma_A to governing something -- under the default the
+    #: proposition is a monotone re-encoding of the observation, calibrated to
+    #: nothing.  See ``docs/truth-noise-hypothesis.md``.
+    truth_noise: bool = False
 
     def __post_init__(self) -> None:
         if self.field_scale not in ("lookahead", "subpixel"):
             raise ValueError(
                 f"field_scale must be 'lookahead' or 'subpixel'; got "
                 f"{self.field_scale!r}."
+            )
+        if self.truth_noise and self.field_scale != "lookahead":
+            # A sub-pixel field already carries within-pixel variation, so
+            # adding a Prop-1 draw on top would apply the same uncertainty
+            # twice.
+            raise ValueError(
+                "truth_noise requires field_scale='lookahead'; a sub-pixel "
+                "field already realises the point-to-block discrepancy."
             )
 
     @property
@@ -237,6 +257,7 @@ def make_env_config(
     episode_length: int = 300,
     n_targets: int | None = None,
     seed: int | None = None,
+    truth_noise: bool = False,
 ) -> EnvConfig:
     """Convenience constructor for one cell of the experimental grid."""
     if controller not in CONTROLLERS:
@@ -247,6 +268,7 @@ def make_env_config(
         episode_length=episode_length,
         n_targets=n_targets,
         enable_planner_action=(controller == "cadet-plan"),
+        clouds=CloudConfig(truth_noise=truth_noise),
         power=PowerConfig(budget=budget),
         sensors=SensorConfig(lookahead_width=lookahead_width),
         seed=seed,

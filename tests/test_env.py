@@ -477,3 +477,53 @@ def test_subpixel_resolution_must_tile_lookahead_pixels():
     cfg = cfg.replace(clouds=CloudConfig(subpixels_per_cell=1))
     with pytest.raises(ValueError, match="sub-cells"):
         DynamicTaskingEnv(cfg)
+
+
+# ---------------------------------------------------------------------------
+# truth_noise: reward and metric come apart (docs/truth-noise-hypothesis.md)
+# ---------------------------------------------------------------------------
+def test_truth_noise_is_off_by_default():
+    """Reward and metric are the same quantity unless truth_noise is set."""
+    env = DynamicTaskingEnv(make_env_config(32, 150.0, "cadet", episode_length=200))
+    env.reset(seed=3)
+    assert env.target_reward_visible is env.target_visible
+
+
+def test_truth_noise_pays_the_reward_on_a_prop1_draw():
+    """The reward truth is Bernoulli(Prop 1); the metric truth stays exact."""
+    cfg = make_env_config(32, 150.0, "cadet", episode_length=200, truth_noise=True)
+    env = DynamicTaskingEnv(cfg)
+    drawn, expected, deterministic = [], [], []
+    for seed in range(6):
+        env.reset(seed=seed)
+        drawn.append(env.target_reward_visible.mean())
+        expected.append(env.target_pvis_if_observed.mean())
+        deterministic.append(env.target_visible.mean())
+    # Averaged over targets, the draw matches the probability it was drawn from.
+    assert np.mean(drawn) == pytest.approx(np.mean(expected), abs=0.03)
+    # ...and differs from the deterministic test, which is the whole point.
+    assert abs(np.mean(drawn) - np.mean(deterministic)) > 0.005
+    # The metric truth is untouched, so baselines stay on a common world.
+    assert np.mean(deterministic) == pytest.approx(1 / 3, abs=0.05)
+
+
+def test_truth_noise_leaves_reported_captures_deterministic():
+    """captured_targets counts the deterministic test even when reward does not."""
+    cfg = make_env_config(32, 1500.0, "cadet", episode_length=300, truth_noise=True)
+    env = DynamicTaskingEnv(cfg)
+    env.reset(seed=11)
+    total = 0.0
+    for _ in range(300):
+        _, reward, _, _, _ = env.step([MOVE_NOOP, SENSE_PAYLOAD])
+        total += reward
+    stats = env.statistics()
+    captured = np.count_nonzero(env.target_captured & env.target_visible)
+    assert stats["captured_targets"] == captured
+    # The reward paid out is a different draw, so the two need not agree.
+    assert total != stats["captured_targets"]
+
+
+def test_truth_noise_rejects_a_subpixel_field():
+    """Stacking a Prop-1 draw on a sub-pixel field would double-count noise."""
+    with pytest.raises(ValueError, match="truth_noise requires"):
+        CloudConfig(field_scale="subpixel", truth_noise=True)

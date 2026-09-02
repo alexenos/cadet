@@ -185,6 +185,7 @@ def render(
         f"| Device | {cfg.get('device')} |",
         f"| σ_A | {meta.get('sigma_a'):.4f} |",
         f"| Cloud model | `field_scale={field_scale}`"
+        + (", `truth_noise=True`" if meta.get("truth_noise") else "")
         + ("" if current_conventions else " (superseded)")
         + " |",
         f"| Policy parameters | {meta.get('policy_parameters'):,} |",

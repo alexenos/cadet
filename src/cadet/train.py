@@ -94,6 +94,7 @@ def train(
     use_paper_sigma: bool = False,
     checkpoint_freq: int = 0,
     progress_bar: bool = True,
+    truth_noise: bool = False,
 ) -> PPO:
     """Train one controller configuration and save the model and metadata."""
     train_config = train_config or TrainConfig()
@@ -102,6 +103,7 @@ def train(
         budget=budget,
         controller=controller,
         episode_length=300,
+        truth_noise=truth_noise,
     )
 
     name = run_name(controller, lookahead_width, budget)
@@ -182,6 +184,7 @@ def train(
         # numbers; runs predating 2026-09-01 have no such key and were trained
         # against the sub-pixel field.  See docs/shortfall-resolved.md.
         "field_scale": env_config.clouds.field_scale,
+        "truth_noise": env_config.clouds.truth_noise,
         "sigma_a": DynamicTaskingEnv(
             env_config, use_paper_sigma=use_paper_sigma
         ).visibility.sigma_a,
@@ -227,6 +230,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="pin sigma_A to the values printed in Figure 3",
     )
+    parser.add_argument(
+        "--truth-noise",
+        action="store_true",
+        help="pay the reward on a Prop-1 draw; metrics stay deterministic",
+    )
     parser.add_argument("--checkpoint-freq", type=int, default=0)
     parser.add_argument("--no-progress", action="store_true")
     return parser
@@ -255,6 +263,7 @@ def main(argv: list[str] | None = None) -> None:
         use_paper_sigma=args.paper_sigma,
         checkpoint_freq=args.checkpoint_freq,
         progress_bar=not args.no_progress,
+        truth_noise=args.truth_noise,
     )
 
 
