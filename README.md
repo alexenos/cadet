@@ -221,21 +221,26 @@ It runs 19 checks in about 30 seconds, in three groups:
 something regressed.
 Pass `--paper-sigma` anywhere to pin the printed values instead.
 
-**Learned-controller results are not reproduced here.** Two of the paper's twenty-four
-configurations have been trained at full 30M-timestep scale, one seed each. The paper's
-central claims — CADET closing 42% of the SSP→Oracle gap and CADET-Plan 56%, plus Tables 1–4
-and Figures 4–6 — remain **unvalidated** at that coverage. See *Compute* below.
+**Learned-controller results are only partially reproduced here.** Three of the paper's
+twenty-four configurations have been trained at full 30M-timestep scale, one seed each, and
+only one of those against the paper's own modelling conventions. Tables 1–4 and Figures 4–6
+remain **unvalidated** at that coverage. See *Compute* below.
 
-**The two trained cells are close to the paper once the modelling conventions match.** The
-first author [replied](docs/author-correspondence.md) to a write-up of an apparent 8% capture
+**Once the modelling conventions match, this implementation exceeds the paper.** The first
+author [replied](docs/author-correspondence.md) to a write-up of an apparent 8% capture
 shortfall and identified two places where his implementation differs from this one: the cloud
 field is modelled at lookahead-pixel scale with ground truth equal to the observed cloud-free
-test, and capture accuracy is divided by capture *actions*. Re-scored under those conventions
-— same weights, nothing retrained — the cells close **69.3%** and **65.2%** of the gap
-against the paper's 56.1% and 60.1%, and capture accuracy at P̄ = 1500 matches to within 2%.
-Both conventions are now the environment's defaults, so the trained-cell figures quoted in
-[`docs/runs/`](docs/runs/README.md) predate them and will change on the next training run.
-See [`docs/shortfall-resolved.md`](docs/shortfall-resolved.md).
+test, and capture accuracy is divided by capture *actions*. Both are now the environment's
+defaults.
+
+Retrained on those conventions, CADET at n = 32, P̄ = 150 captures **278.2 ± 2.9** targets and
+closes **82.0%** of the SSP→Oracle gap, against the paper's 255.5 and 56.1% — and above the
+paper's *CADET-Plan* figure of 72.7% for the same cell. Capture accuracy is 0.990 against a
+published 0.714, at 0.86 of the power budget against 1.03. Every qualitative claim reproduces;
+the disagreement is one of degree, in the direction of the method working better than
+reported, and the cause is not yet established. See
+[`docs/shortfall-resolved.md`](docs/shortfall-resolved.md) and the
+[run write-up](docs/runs/2026-09-02-cadet-n32-P150-lookahead.md).
 
 ---
 

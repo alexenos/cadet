@@ -11,8 +11,10 @@ gap and named two places where his implementation differs from this one. Both we
 directly. Together they account for the entire deficit, and one of them also retires a
 "typo" this repo had wrongly attributed to the paper.
 
-**Nothing was retrained to establish this.** Every number below comes from the two existing
-30M-timestep checkpoints, re-scored under the author's conventions.
+**Nothing was retrained to establish this.** Every number in sections 1–4 comes from the two
+existing 30M-timestep checkpoints, re-scored under the author's conventions. One cell was
+retrained afterwards to test the conclusion; that is §5, and it moved the result further from
+the paper rather than closer.
 
 | n = 32, 20 evaluation episodes | P̄ = 150 | P̄ = 1500 |
 |---|---|---|
@@ -173,6 +175,11 @@ selective about which targets to shoot collects the full value of that selectivi
 when a good look guarantees a good capture. Retraining under the corrected environment is
 what would settle it, and the honest expectation is that the numbers move.
 
+> **Settled by the retrain, and not in the direction guessed above.** Training under the
+> corrected environment did not pull the number back toward the paper — it pushed it
+> further out, to **278.2 targets and 82.0% of the gap**. The transfer was not flattering
+> the old weights; the corrected reward genuinely produces a better policy. See §5.
+
 **σ_A is now immaterial.** The ~6% discrepancy against Figure 3 was carried as an open
 assumption. Under the paper's convention σ_A never touches the ground truth — it only sets
 the scale of a monotone belief feature, and monotone rescaling cannot change which targets
@@ -188,7 +195,7 @@ but it can no longer affect any result.
 | 3 | Same denominator for the baselines, counting scheduled captures only | [`baselines.py`](../src/cadet/baselines.py) | **done** |
 | 4 | Retract the Table 3 typo claim; correct the shortfall narrative | this repo's docs | **done** |
 | 5 | Demote the σ_A discrepancy to a geometry note | [`reproduction-notes.md`](reproduction-notes.md) | **done** |
-| 6 | Retrain both cells under the corrected environment | — | not started |
+| 6 | Retrain under the corrected environment | — | **one cell done**, see below |
 
 Change 1 needs no edit to target generation: with `Y(p) ≡ Y_A`, the existing
 `target_visible` computation *is* the observed-cloud-free test.
@@ -218,7 +225,41 @@ that ground truth equals the observed cloud-free test on every target. Both pass
 means the accuracy figures in Table 3 are not measuring the quantity Proposition 1
 predicts.
 
-## 5. Reproducing the numbers here
+## 5. The retrain
+
+One cell was retrained from scratch on the corrected environment: CADET, n = 32,
+P̄ = 150, seed 0, 30M timesteps, 15.85 h. Full write-up in
+[`runs/2026-09-02-cadet-n32-P150-lookahead.md`](runs/2026-09-02-cadet-n32-P150-lookahead.md).
+
+| n = 32, P̄ = 150 | targets | gap closed | accuracy | Ē/P̄ |
+|---|---|---|---|---|
+| **retrained on corrected model** | **278.2 ± 2.9** | **82.0%** | **0.990** | 0.86 |
+| transferred (old weights, re-scored) | 267.6 ± 2.9 | 69.3% | 0.835 | 0.93 |
+| paper, CADET | 255.5 | 56.1% | 0.714 | 1.03 |
+| paper, CADET-Plan | 269.1 | 72.7% | 0.682 | 1.07 |
+
+Retraining is worth **+10.6 targets** over the transferred policy, and it splits into two
+distinct gains: 11 more believed-clear opportunities per episode (better steering) and 50
+fewer shots at targets believed obscured (better discipline, which is also why energy falls
+from 0.93 to 0.86 of budget). Neither policy misses opportunities it has — confirming that
+under this convention steering, not shot timing, is the whole problem.
+
+Plain CADET now exceeds the paper's *CADET-Plan* figure for this cell, and reaches 94.9% of
+the Oracle. The overshoot is therefore real and larger than the shortfall this document was
+written to explain. The sharpest clue is accuracy — 0.990 against a published 0.714. Where a
+lookahead observation is decisive, a well-trained agent should be near-perfect on targets it
+has observed, so a 29% miss rate suggests the paper's agent shoots at unobserved targets or
+works from a less informative observation. This implementation supplies a belief raster
+carrying the Proposition 1 probability per target alongside separate cloud value and mask
+channels; if the paper's observation encoded less, its agent would discriminate less well and
+spend power on marginal targets — which is what its 1.03 Ē/P̄ and 0.714 accuracy describe.
+That is a hypothesis, testable by ablating the belief channel, and the natural next question
+for the author.
+
+Also worth recording: the run converged by ~12M timesteps. The 20M checkpoint evaluates at
+278.7 and the final 30M at 278.2, identical within error, so the last 18M bought nothing.
+
+## 6. Reproducing the numbers here
 
 [`scripts/rescore_under_author_model.py`](../scripts/rescore_under_author_model.py)
 regenerates both §2 tables that depend on the field model — the re-scored checkpoints and
