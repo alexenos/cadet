@@ -20,7 +20,8 @@ exists, rather than asserting behaviour.
 | 2026-08-28 | [cadet n=32 P̄=150](2026-08-28-cadet-n32-P150.md) | quick, stopped at 890k | — | 5.24 | **Negative result.** Policy saturated at 207k, gradients exactly zero after; λ diverged to 46. |
 | 2026-08-29 | [cadet n=32 P̄=150](2026-08-29-cadet-n32-P150-paper.md) | **paper (30M)** | 18.5% | 0.93 | Trains cleanly — confirms the quick-scale collapse was a curriculum artifact. Short of the paper's 42%. |
 | 2026-08-30 | [cadet n=32 P̄=1500](2026-08-30-cadet-n32-P1500-paper.md) | paper (30M) | 33.5% | 0.24 | Diagnostic: constraint cannot bind. Isolates the root cause — learned trajectory covers 75% of the DP optimum. |
-| 2026-09-02 | [cadet n=32 P̄=150, corrected model](2026-09-02-cadet-n32-P150-lookahead.md) | **paper (30M)** | **82.0%** | 0.86 | **First run on the paper's own conventions.** 278.2 targets against the paper's 255.5; accuracy 0.990 against 0.714. Converged by ~12M. |
+| 2026-09-02 | [cadet n=32 P̄=150, corrected model](2026-09-02-cadet-n32-P150-lookahead.md) | **paper (30M)** | 82.0% | 0.86 | First run on the paper's conventions, but with the Prop-1 noise removed from training as well as the metric — an over-strong reading, superseded below. 278.2 targets, accuracy 0.990. |
+| 2026-09-03 | [cadet n=32 P̄=150, truth-noise](2026-09-03-cadet-n32-P150-truthnoise.md) | **paper (30M)** | **70.5%** | 0.97 | **The paper's actual environment**, confirmed by the author: Prop-1 noise in the training reward, deterministic identity only at evaluation. 268.5 targets against 255.5, accuracy 0.793 against 0.714, and the power constraint binds at convergence as the paper describes. |
 
 Evidence for each write-up — the diagnostics figure, a thinned metric history, and the
 evaluation result — is committed alongside it in [`assets/`](assets/). The run directory

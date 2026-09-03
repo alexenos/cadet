@@ -263,7 +263,33 @@ training run.
 Also worth recording: the run converged by ~12M timesteps. The 20M checkpoint evaluates at
 278.7 and the final 30M at 278.2, identical within error, so the last 18M bought nothing.
 
-## 6. Reproducing the numbers here
+## 6. Superseded: the retrain used an over-strong reading
+
+§5's run applied `is_cloud_free = is_observed_cloud_free` to the training reward as well as
+the metric. [Message 4](author-correspondence.md) establishes that the paper did not: the
+Prop-1 noise was present during training, and the deterministic identity applied only to the
+evaluation environment. A second cell was retrained on that environment
+([write-up](runs/2026-09-03-cadet-n32-P150-truthnoise.md)), against a prediction registered
+in [`truth-noise-hypothesis.md`](truth-noise-hypothesis.md) before it started:
+
+| n = 32, P̄ = 150 | targets | gap closed | accuracy | Ē/P̄ | λ at convergence |
+|---|---|---|---|---|---|
+| **noise in training (the paper's environment)** | **268.5 ± 2.8** | **70.5%** | **0.793** | 0.97 | 0.0185 |
+| §5: noise removed everywhere | 278.2 ± 2.9 | 82.0% | 0.990 | 0.86 | 0.0 |
+| paper, CADET | 255.5 | 56.1% | 0.714 | 1.03 | — |
+
+Every metric moves toward the paper at once, which §5's run did not. The qualitative result
+matters more than the numbers: with the noise restored the power constraint **binds at
+convergence** — discounted cost 99.91 against a threshold of 100 — matching the paper's
+description of controllers operating close to the budget. Under §5's environment λ decayed to
+zero and the policy finished with budget unspent, because a policy that knows everything after
+one look runs out of things worth buying.
+
+The residual is **+13.0 targets, +5.1%, about 2.6 s.e.** — not within noise, but far closer
+than §5's 82.0%. The largest unexplained factor is now the number of parallel environments,
+which Table 5 does not specify.
+
+## 7. Reproducing the numbers here
 
 [`scripts/rescore_under_author_model.py`](../scripts/rescore_under_author_model.py)
 regenerates both §2 tables that depend on the field model — the re-scored checkpoints and

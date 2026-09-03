@@ -17,6 +17,27 @@
 > **The prediction below is left exactly as written.** Confirming the mechanism is not the
 > same as reproducing the numbers, and the run is still the test of that.
 
+> **Outcome, 2026-09-03.** The run finished at 30M
+> ([write-up](runs/2026-09-03-cadet-n32-P150-truthnoise.md)):
+>
+> | quantity | predicted | got | paper |
+> |---|---|---|---|
+> | targets | 262 – 270 | **268.5 ± 2.8** ✓ | 255.5 |
+> | gap closed | 63 – 72% | **70.5%** ✓ | 56.1% |
+> | capture accuracy | 0.80 – 0.87 | **0.793** ✗ | 0.714 |
+> | Ē/P̄ | ~0.92 | 0.97 | 1.03 |
+>
+> Two of three inside the band; accuracy fell below it, nearer the paper than predicted. The
+> "roughly 10 targets" residual anticipated below came out at **+13.0 (+5.1%, ~2.6 s.e.)**,
+> and it *grew* between the 22.5M checkpoint (262.4) and the final model — an intermediate
+> report of this run cited the 22.5M figure as evidence the result was within noise, which
+> the finished run does not support.
+>
+> The qualitative prediction not written down below, but the more important one: the power
+> constraint **binds at convergence** (λ = 0.0185, discounted cost 99.91 against a threshold
+> of 100), matching the paper's description of controllers operating close to the budget.
+> Reading A finished slack at λ = 0 and Ē/P̄ = 0.86.
+
 Retraining on the paper's conventions closed **82.0%** of the SSP→Oracle gap against a
 published **56.1%** ([run write-up](runs/2026-09-02-cadet-n32-P150-lookahead.md)). That
 overshoot is larger than the 8% shortfall this whole investigation started from, and it
