@@ -180,11 +180,12 @@ what would settle it, and the honest expectation is that the numbers move.
 > further out, to **278.2 targets and 82.0% of the gap**. The transfer was not flattering
 > the old weights; the corrected reward genuinely produces a better policy. See §5.
 
-**σ_A is now immaterial.** The ~6% discrepancy against Figure 3 was carried as an open
-assumption. Under the paper's convention σ_A never touches the ground truth — it only sets
-the scale of a monotone belief feature, and monotone rescaling cannot change which targets
-a policy prefers. The geometric convention behind the 0.86× factor is still unexplained,
-but it can no longer affect any result.
+**σ_A — this section claimed it was immaterial, and that is now withdrawn.** The claim rested
+on truth being deterministic everywhere. [Message 4](author-correspondence.md) establishes
+that during training payload success is `sigmoid(z̃_A + ε) < τ` with `ε ~ N(0, σ_A)`, so σ_A is
+the width of the noise the agent actually learns against and the ~6% discrepancy against
+Figure 3 is a real difference — one that makes this environment slightly *harder* than the
+paper's. It is immaterial only at evaluation, where success is `Y_A < τ`.
 
 ## 4. Recommended changes
 

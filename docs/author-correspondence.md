@@ -12,6 +12,8 @@ investigation the reply prompted is written up in
 |---|---|---|---|
 | 1 | 2026-08-30 | Dax Garner | Reproducing CADET — an LLM-only implementation, and a gap I can't explain |
 | 2 | 2026-09-01 | Nick Nordlund | *(reply)* |
+| 3 | 2026-09-02 | Dax Garner | *(was the Prop-1 noise dropped from training, or only from the metric?)* |
+| 4 | 2026-09-02 | Nick Nordlund | *(reply: noise was in training; the identity applied only at evaluation)* |
 
 ---
 
@@ -111,8 +113,10 @@ where I've diverged:
 3. **Lookahead pixel size.** I read the geometry as L = (n/32)·250/32 km. This gives σ_A
    about 6% above Figure 3 — consistently, across all four widths, suggesting a small
    geometric convention I've guessed wrong.
-   *(Immaterial, given the reply: under the paper's convention σ_A never enters the ground
-   truth, only the scale of a monotone belief feature.)*
+   *(Message 4 confirms σ_A is load-bearing after all: it is the standard deviation of the
+   noise that decides payload success during training, so a 6% error is a real difference
+   between this environment and the paper's. An intermediate note here called it immaterial;
+   that was based on the mistaken reading that truth was deterministic.)*
 4. **Delegation cost.** 18 units for the planner call, plus 36 if the returned command is a
    slew, reading "an additional power cost" as additive.
 5. `max_grad_norm` = 0.5, CNN feature dimension 256, λ initialised at 0.
@@ -186,7 +190,7 @@ Nick
 
 ---
 
-## What the reply settled
+## What message 2 settled
 
 Both points were tested directly rather than taken on trust, and both hold. The two
 conventions together account for the entire shortfall the outgoing message asked about:
@@ -200,23 +204,93 @@ conventions together account for the entire shortfall the outgoing message asked
 The full investigation, the evidence behind each row, and the resulting change list are in
 [`shortfall-resolved.md`](shortfall-resolved.md).
 
+---
+
+## 3 — Sent 2026-09-02
+
+I think I am a bit confused by your statement, "Because this noise changed the ground truth
+visibility depending on the FOV of the lookahead, we set is_cloud_free =
+is_observed_cloud_free for consistency across the evaluations" - Was the Prop-1 noise dropped
+from the training environment, or only from how you computed the evaluation metrics?
+
+---
+
+## 4 — Received 2026-09-02
+
+Hi Dax,
+
+During training, the Prop-1 noise was included in the environment. Payload success was
+determined by the point visibility Y(p)<τ, while the lookahead sensor observed the
+block-average cloud value Y_A.
+
+The cloud generation process we used was:
+
+1. Generate Z_A, the value of a zero-mean Gaussian random field (GRF) at block A
+2. Scale the GRF: z̃_A = α*Z_A + β
+3. Sample spatial aggregation noise ε ~ Normal(0, σ_A)
+4. Set block average lookahead cloud coverage value: Y_A = sigmoid(z̃_A)
+5. Set pointwise cloud coverage value over target: Y(p) = sigmoid(z̃_A + ε)
+
+All cloud values are derived from Z_A. Since σ_A depends on the lookahead FOV, two
+environments with different FOVs and the same random seed may have different Y(p) point
+visibilities for the same target even though they share the same underlying block value Y_A.
+
+This wasn't a problem during training. For all agents, the Prop-1 noise was included in the
+environment leading to different Y(p) and Y_A values. It became an issue when comparing
+agents trained with different FOVs. We noticed that SSP and Oracle would not behave
+identically across FOVs because the underlying target visibility itself was changing as σ_A
+changed.
+
+To make sure agents with different FOVs were evaluated on the same targets with the same
+visibility realization, we changed the evaluation environment so that target visibility was
+determined using Y_A<τ instead of the Y(p)<τ used during training. Otherwise, changing the
+FOV would change σ_A, which in turn would change the underlying target visibility and make
+cross-FOV comparisons difficult to interpret. The agents still maintained beliefs according
+to their FOV-dependent Prop-1 model; the only thing that changed was the visibility used by
+the RL environment to determine capture success during evaluation.
+
+One reason we originally avoided a high-resolution cloud field was that we didn't want
+fine-scale cloud structure leaking into the observation through the image channels. Using the
+low-resolution field plus the Proposition 1 discrepancy model let us control exactly what
+information was available to the policy. In retrospect, though, your approach is probably the
+cleaner way to handle the cross-FOV evaluation problem.
+
+Always happy to discuss more 🙂
+
+Nick
+
+---
+
+## What message 4 settled
+
+**The [truth-noise hypothesis](truth-noise-hypothesis.md) is confirmed.** The Prop-1 noise was
+in the training environment; the deterministic identity applied only to the evaluation
+environment. Reading B was right and the build committed on 2026-09-01 — deterministic
+everywhere — trained against an environment materially easier than the paper's.
+
+His five-step generative process also settles a question the paper leaves open. Because
+`Y(p) = sigmoid(z̃_A + ε)` and `Y_A = sigmoid(z̃_A)` with `ε ~ N(0, σ_A)`, the relation
+`logit Y(p) = logit Y_A + ε` holds *exactly*. Proposition 1 is therefore not an
+`O(σ_A)` approximation in their simulator, as Appendix A.3 frames it — it is the exact
+conditional law, true by construction. `Pr(Y(p) < τ | Y_A) = Φ((logit τ − logit Y_A)/σ_A)`
+with no error term.
+
+That makes `σ_A` load-bearing again. It sets the width of the noise that decides payload
+success during training, so the ~6% discrepancy against Figure 3 — demoted to a curiosity when
+truth was thought to be deterministic — is back to being a real, if small, difference between
+this environment and the paper's.
+
 ## Open questions for a follow-up
 
-1. **Was the Prop-1 noise dropped from the training environment, or only from how the
-   evaluation metrics were computed?** This is the one that matters most. Retraining with
-   `is_cloud_free = is_observed_cloud_free` applied throughout closes 82.0% of the gap against
-   a published 56.1%, at capture accuracy 0.990 against 0.714 — and where a lookahead
-   observation is decisive, a well-trained agent should be near-perfect, so 0.714 suggests
-   residual uncertainty was present during training. See
-   [`truth-noise-hypothesis.md`](truth-noise-hypothesis.md).
-2. **Baseline accuracy denominator.** Under "cloud-free captures ÷ capture actions", the
+1. **Baseline accuracy denominator.** Under "cloud-free captures ÷ capture actions", the
    `ssp` baseline fires the payload every epoch and scores 0.070, not the 35% quoted beside
    Figure 5. 35% is the cloud-free base rate, which is what the ratio gives if the baseline
    is charged only for *scheduled* captures. Confirming which the paper used would settle
    how to report the baseline row.
-3. **Proposition 1 is not calibrated under this convention.** With
-   `is_cloud_free = is_observed_cloud_free`, a target assigned probability 0.7 is cloud free
-   100% of the time, not 70% — the ordering is untouched, so no policy changes, but the
-   quantity Prop. 1 predicts is no longer the quantity the accuracy metric measures.
+3. **Prop 1 is calibrated in training and deliberately not at evaluation.** Answered by
+   message 4: during training a target assigned 0.7 really is clear 70% of the time, so the
+   proposition is exact. At evaluation success switches to `Y_A < τ`, so the reported
+   accuracy is not measuring the quantity the belief predicts — by design, to keep the FOV
+   cells comparable. Worth stating explicitly in any write-up of Table 3.
 4. **Number of parallel environments** — asked in message 1, not yet answered, and still
    the largest unspecified hyperparameter.

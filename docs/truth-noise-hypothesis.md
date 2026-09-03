@@ -2,6 +2,21 @@
 
 *2026-09-02. Written before the run that tests it, so the prediction is on the record.*
 
+> **Confirmed by the author, 2026-09-02, after this was written and committed.**
+> [Message 4](author-correspondence.md): *"During training, the Prop-1 noise was included in
+> the environment. Payload success was determined by the point visibility Y(p)<τ, while the
+> lookahead sensor observed the block-average cloud value Y_A."* Reading B is correct; the
+> build committed on 2026-09-01 trained against an environment easier than the paper's.
+>
+> His generative process — `z̃_A = αZ_A + β`, `ε ~ N(0, σ_A)`, `Y_A = sigmoid(z̃_A)`,
+> `Y(p) = sigmoid(z̃_A + ε)` — makes `logit Y(p) = logit Y_A + ε` hold exactly, so
+> `Pr(Y(p) < τ | Y_A) = Φ((logit τ − logit Y_A)/σ_A)` with no approximation error. Drawing the
+> reward truth as `Bernoulli(Φ(·))`, which is what `truth_noise` does, is distributionally
+> identical to drawing ε and thresholding. The implementation is faithful.
+>
+> **The prediction below is left exactly as written.** Confirming the mechanism is not the
+> same as reproducing the numbers, and the run is still the test of that.
+
 Retraining on the paper's conventions closed **82.0%** of the SSP→Oracle gap against a
 published **56.1%** ([run write-up](runs/2026-09-02-cadet-n32-P150-lookahead.md)). That
 overshoot is larger than the 8% shortfall this whole investigation started from, and it

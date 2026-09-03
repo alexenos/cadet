@@ -52,12 +52,14 @@ published values are what the paper's agents actually trained against, `--paper-
 `VisibilityModel(..., use_paper_sigma=True)`) pins them. Both settings are exercised by the
 test suite.
 
-**This discrepancy cannot affect any result.** Under the convention the author describes,
-σ_A never enters the ground truth — the truth is `Y_A < τ`, and σ_A only sets the scale of
-`Φ((logit τ − logit Y_A)/σ_A)`, a monotone transform of the same `Y_A`. A monotone rescaling
-cannot change which targets a policy prefers, so the 0.86× factor is a curiosity about the
-pixel-geometry convention and nothing more. It is retained here because it is unexplained,
-not because it is load-bearing.
+**This discrepancy is load-bearing.** An earlier revision of this section claimed the
+opposite — that σ_A never enters the ground truth and so could not affect any result. That
+was based on reading the author's `is_cloud_free = is_observed_cloud_free` as applying
+everywhere. [Message 4](author-correspondence.md) corrects it: during training, payload
+success is decided by `Y(p) = sigmoid(z̃_A + ε) < τ` with `ε ~ N(0, σ_A)`. σ_A is the width of
+that noise, so a 6% error makes this environment measurably noisier than the paper's — in the
+direction of *understating* our results, not inflating them. It only becomes immaterial at
+evaluation, where success switches to `Y_A < τ`.
 
 ## Constraint cost normalisation
 
