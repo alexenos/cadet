@@ -198,7 +198,7 @@ Everything above is re-derived from scratch by one script — no trained policy,
 python scripts/verify.py
 ```
 
-It runs 19 checks in about 30 seconds, in three groups:
+It runs 20 checks in about 30 seconds, in three groups:
 
 - **Paper values** recomputed from the models — cloud-free fraction, the four σ_A
   values of Figure 3, both baselines, capture accuracy, parameter count.

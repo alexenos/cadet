@@ -79,14 +79,17 @@ class CloudConfig:
     #: than on the deterministic test, while every reported metric and both
     #: baselines keep the deterministic one.
     #:
-    #: This is the second reading of the author's "we set
-    #: ``is_cloud_free = is_observed_cloud_free`` for consistency across the
-    #: evaluations": that the Prop-1 noise was dropped from the *metric* so the
-    #: 24 cells share a common world, but stayed in the training reward.  It
-    #: restores sigma_A to governing something -- under the default the
-    #: proposition is a monotone re-encoding of the observation, calibrated to
-    #: nothing.  See ``docs/truth-noise-hypothesis.md``.
-    truth_noise: bool = False
+    #: This is what the paper's implementation does, confirmed by the author:
+    #: the Prop-1 noise was present during training and the deterministic
+    #: identity applied only to the evaluation environment, so that cells with
+    #: different lookahead FOVs are scored against a common world.  It also
+    #: keeps sigma_A governing something real -- with the noise removed,
+    #: Proposition 1 degenerates into a monotone re-encoding of the observation,
+    #: calibrated to nothing.  See ``docs/truth-noise-hypothesis.md``.
+    #:
+    #: Set ``False`` together with ``field_scale="subpixel"`` to recover the
+    #: pre-2026-09-01 environment.
+    truth_noise: bool = True
 
     def __post_init__(self) -> None:
         if self.field_scale not in ("lookahead", "subpixel"):
@@ -100,7 +103,9 @@ class CloudConfig:
             # twice.
             raise ValueError(
                 "truth_noise requires field_scale='lookahead'; a sub-pixel "
-                "field already realises the point-to-block discrepancy."
+                "field already realises the point-to-block discrepancy, so "
+                "drawing it again would apply the same uncertainty twice. "
+                "Pass truth_noise=False alongside field_scale='subpixel'."
             )
 
     @property
@@ -257,7 +262,7 @@ def make_env_config(
     episode_length: int = 300,
     n_targets: int | None = None,
     seed: int | None = None,
-    truth_noise: bool = False,
+    truth_noise: bool = True,
 ) -> EnvConfig:
     """Convenience constructor for one cell of the experimental grid."""
     if controller not in CONTROLLERS:

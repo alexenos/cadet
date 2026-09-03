@@ -286,6 +286,12 @@ def test_cloud_value_channel_reports_block_averages(env):
 # Payload captures and reward
 # ---------------------------------------------------------------------------
 def test_reward_only_counts_cloud_free_captures():
+    """Reward pays on the training truth; the metric counts the evaluation one.
+
+    Under the default environment these are different draws, so the episode
+    reward and ``captured_targets`` are not the same number -- each must count
+    exactly the captures its own ground truth calls cloud free.
+    """
     env = DynamicTaskingEnv(make_env_config(32, 1500.0, "cadet", episode_length=300))
     env.reset(seed=10)
     total = 0.0
@@ -293,7 +299,10 @@ def test_reward_only_counts_cloud_free_captures():
         _, reward, _, _, _ = env.step([MOVE_NOOP, SENSE_PAYLOAD])
         total += reward
     stats = env.statistics()
-    assert total == stats["captured_targets"]
+    assert total == np.count_nonzero(env.target_captured & env.target_reward_visible)
+    assert stats["captured_targets"] == np.count_nonzero(
+        env.target_captured & env.target_visible
+    )
     assert stats["captured_targets"] <= stats["targets_imaged"]
     # The paper's denominator is capture *actions*, not targets encountered.
     assert stats["capture_accuracy"] == pytest.approx(
@@ -482,9 +491,20 @@ def test_subpixel_resolution_must_tile_lookahead_pixels():
 # ---------------------------------------------------------------------------
 # truth_noise: reward and metric come apart (docs/truth-noise-hypothesis.md)
 # ---------------------------------------------------------------------------
-def test_truth_noise_is_off_by_default():
-    """Reward and metric are the same quantity unless truth_noise is set."""
+def test_truth_noise_is_on_by_default():
+    """The default environment is the paper's: noise in the reward, not the metric."""
     env = DynamicTaskingEnv(make_env_config(32, 150.0, "cadet", episode_length=200))
+    env.reset(seed=3)
+    assert env.cfg.clouds.truth_noise
+    assert env.target_reward_visible is not env.target_visible
+    assert not np.array_equal(env.target_reward_visible, env.target_visible)
+
+
+def test_truth_noise_off_welds_reward_to_metric():
+    """Turning it off recovers a single ground truth for both."""
+    env = DynamicTaskingEnv(
+        make_env_config(32, 150.0, "cadet", episode_length=200, truth_noise=False)
+    )
     env.reset(seed=3)
     assert env.target_reward_visible is env.target_visible
 

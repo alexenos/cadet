@@ -49,7 +49,15 @@ CHECKPOINTS = (
 
 def _with_scale(cfg, field_scale: str):
     """Copy of an env config with the cloud field drawn at ``field_scale``."""
-    return cfg.replace(clouds=dataclasses.replace(cfg.clouds, field_scale=field_scale))
+    return cfg.replace(
+        clouds=dataclasses.replace(
+            cfg.clouds,
+            field_scale=field_scale,
+            # A sub-pixel field realises the discrepancy itself; drawing it
+            # again would double-count.
+            truth_noise=(field_scale == "lookahead"),
+        )
+    )
 
 
 def baseline_table(n_episodes: int, episode_length: int, field_scale: str) -> None:

@@ -178,7 +178,7 @@ def group_b(quick: bool) -> None:
     # it therefore requires the sub-pixel field, not the environment's default
     # lookahead-scale one -- under which Y(p) == Y_A and the proposition is
     # degenerate rather than calibrated (see the truth-vs-observed check below).
-    cfg = dataclasses.replace(CloudConfig(), field_scale="subpixel")
+    cfg = dataclasses.replace(CloudConfig(), field_scale="subpixel", truth_noise=False)
     rng = np.random.default_rng(2)
     model = VisibilityModel(lookahead_width=32)
     block = 4  # one n=32 lookahead pixel, in sub-cell units
@@ -205,6 +205,26 @@ def group_b(quick: bool) -> None:
         f"{worst:.3f}",
         "< 0.12",
         worst < 0.12,
+    )
+
+    # The default environment pays the reward on a Bernoulli draw from Prop 1
+    # (the sub-pixel discrepancy, realised implicitly) while reporting the
+    # deterministic test. Averaged over targets the draw must match the
+    # probability it came from, or sigma_A is not reaching the reward -- the
+    # failure mode that cost a full 30M-timestep run to detect.
+    env = DynamicTaskingEnv(make_env_config(32, 150.0, "cadet", episode_length=400))
+    drawn, expected = [], []
+    for seed in range(3 if quick else 8):
+        env.reset(seed=seed)
+        drawn.append(float(env.target_reward_visible.mean()))
+        expected.append(float(env.target_pvis_if_observed.mean()))
+    err = abs(float(np.mean(drawn)) - float(np.mean(expected)))
+    check(
+        "B",
+        "reward truth is calibrated to Prop 1",
+        f"{np.mean(drawn):.3f} vs {np.mean(expected):.3f}",
+        "< 0.02",
+        err < 0.02,
     )
 
     # The environment's default convention, which is the paper's: the field is
@@ -242,7 +262,12 @@ def group_b(quick: bool) -> None:
     # by accumulating env.step() rewards. Every gap-closure number compares the
     # two, so the two accountings must agree exactly or the comparison is
     # apples-to-oranges. Replay each baseline's own trajectory through step()
-    # and require the rewards to match to the target.
+    # and require the reported capture counts to match to the target.
+    #
+    # This compares statistics()["captured_targets"], NOT the summed reward.
+    # Under the default environment the reward is paid on a Prop-1 draw while
+    # every reported number uses the deterministic test, so the two legitimately
+    # differ; it is the reported quantity that has to agree across accountings.
     agree = 0
     n_ep = 5 if quick else 12
     trials = 0
@@ -259,15 +284,15 @@ def group_b(quick: bool) -> None:
                 nxt = int(cols[t + 1]) if t + 1 < cols.size else int(cols[t])
                 d = nxt - int(cols[t])
                 mv = MOVE_NOOP if d == 0 else (MOVE_LEFT if d < 0 else MOVE_RIGHT)
-                _, r, term, trunc, _ = env.step((mv, SENSE_PAYLOAD))
-                total += r
+                _, _, term, trunc, _ = env.step((mv, SENSE_PAYLOAD))
                 if term or trunc:
                     break
+            total = env.statistics()["captured_targets"]
             trials += 1
             agree += int(abs(total - res.captured_targets) < 1e-9)
     check(
         "B",
-        "offline baseline == online env.step reward",
+        "offline baseline == online captured_targets",
         f"{agree}/{trials}",
         f"{trials}/{trials}",
         agree == trials,
@@ -292,13 +317,14 @@ def group_c(quick: bool) -> None:
         ssp_scores.append(run_baseline(env, "ssp").captured_targets)
         oracle_scores.append(run_baseline(env, "oracle").captured_targets)
         env.reset(seed=seed)
-        total, done = 0.0, False
+        done = False
         while not done:
             a = env.action_space.sample()
-            _, r, term, trunc, _ = env.step(a)
-            total += r
+            _, _, term, trunc, _ = env.step(a)
             done = term or trunc
-        rand_scores.append(total)
+        # Scored on the same quantity as the baselines: the reported metric,
+        # not the (noisy) reward.
+        rand_scores.append(env.statistics()["captured_targets"])
     r_, s_, o_ = (float(np.mean(x)) for x in (rand_scores, ssp_scores, oracle_scores))
     check(
         "C",

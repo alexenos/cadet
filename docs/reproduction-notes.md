@@ -95,7 +95,12 @@ boundaries. Targets are placed at a uniformly random sub-cell within their AoR c
 `p_i` is a point on the surface rather than a whole cell.
 
 > **This was where the implementations diverged, and it is now resolved in favour of the
-> paper.** `CloudConfig.field_scale` defaults to `"lookahead"`: the latent field is drawn on
+> paper.** The sub-pixel discrepancy this section describes is still modelled — the paper
+> just realises it *implicitly*. `CloudConfig.truth_noise` (default `True`) draws each
+> target's training ground truth as `Bernoulli(Φ((logit τ − logit Y_A)/σ_A))`, which is
+> distributionally identical to the author's `Y(p) = sigmoid(z̃_A + ε)`. The two settings are
+> two implementations of the same physical effect, which is why combining them is rejected.
+> `CloudConfig.field_scale` defaults to `"lookahead"`: the latent field is drawn on
 > the lookahead-pixel grid and held constant within a pixel, so `Y(p) = Y_A` and a lookahead
 > observation settles a target's visibility — the author's
 > `is_cloud_free = is_observed_cloud_free`. The reasoning above, that simulating at pixel
